@@ -1,0 +1,152 @@
+/**
+ * MindTrace 思维宇宙 — 深色认知图谱页
+ */
+
+:root {
+  --cosmos-bg: #050816;
+  --cosmos-text: #c8d4f0;
+  --cosmos-muted: #6b7a9e;
+  --cosmos-accent: #8b9cff;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body.cosmos-body {
+  font-family: var(--font);
+  background: var(--cosmos-bg);
+  color: var(--cosmos-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.cosmos-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: radial-gradient(ellipse 120% 80% at 50% 0%, #0c1435 0%, var(--cosmos-bg) 55%);
+}
+
+.cosmos-header {
+  flex-shrink: 0;
+  padding: 20px 24px 12px;
+  border-bottom: 1px solid rgba(120, 150, 255, 0.08);
+  background: linear-gradient(180deg, rgba(8, 12, 32, 0.92) 0%, transparent 100%);
+  z-index: 2;
+}
+
+.cosmos-header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.cosmos-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #e8eeff;
+  text-shadow: 0 0 24px rgba(120, 160, 255, 0.35);
+}
+
+.cosmos-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--cosmos-muted);
+}
+
+.cosmos-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--cosmos-accent);
+  text-decoration: none;
+  border: 1px solid rgba(139, 156, 255, 0.25);
+  border-radius: 8px;
+  background: rgba(20, 30, 70, 0.4);
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.cosmos-link:hover {
+  background: rgba(40, 55, 120, 0.5);
+  border-color: rgba(139, 156, 255, 0.45);
+}
+
+.cosmos-main {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.cosmos-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.cosmos-stage canvas {
+  display: block;
+}
+
+.cosmos-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: rgba(5, 8, 22, 0.85);
+  z-index: 1;
+}
+
+.cosmos-spinner {
+  width: 36px;
+  height: 36px;
+  border: 2px solid rgba(130, 160, 255, 0.2);
+  border-top-color: var(--cosmos-accent);
+  border-radius: 50%;
+  animation: cosmos-spin 0.9s linear infinite;
+}
+
+@keyframes cosmos-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cosmos-overlay-text {
+  font-size: 14px;
+  color: var(--cosmos-muted);
+  text-align: center;
+  max-width: 320px;
+  line-height: 1.6;
+}
+
+.cosmos-hint-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px 20px 16px;
+  font-size: 12px;
+  color: var(--cosmos-muted);
+  text-align: center;
+  pointer-events: none;
+  background: linear-gradient(0deg, rgba(5, 8, 22, 0.75) 0%, transparent 100%);
+  z-index: 1;
+}

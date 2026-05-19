@@ -1,0 +1,286 @@
+/**
+ * MindTrace — 本地存储模块
+ * 元数据：chrome.storage.local
+ * 向量：IndexedDB（MindTraceEmbeddingStorage）
+ */
+
+const MindTraceStorage = (function () {
+  /** @type {string} 存储键名，集中管理便于迁移 */
+  const STORAGE_KEY = 'mindtrace_inspirations';
+
+  /**
+   * 从记录对象中剥离 embedding，避免写入 chrome.storage
+   * @param {InspirationRecord} record
+   * @returns {InspirationRecord}
+   */
+  function stripEmbeddingForStorage(record) {
+    if (!record) {
+      return record;
+    }
+    const copy = { ...record };
+    delete copy.embedding;
+    return copy;
+  }
+
+  /**
+   * 用于关键词 / 向量提取的文本
+   * @param {InspirationRecord} record
+   * @returns {string}
+   */
+  function getTextForKeywords(record) {
+    if (!record) {
+      return '';
+    }
+    return [record.note, record.selectedText, record.pageTitle]
+      .filter((part) => part && String(part).trim())
+      .join('\n');
+  }
+
+  /**
+   * 为单条记录补全 keywords（不写入 storage）
+   * @param {InspirationRecord} record
+   * @returns {InspirationRecord}
+   */
+  function ensureKeywords(record) {
+    if (!record) {
+      return record;
+    }
+    if (Array.isArray(record.keywords) && record.keywords.length > 0) {
+      return record;
+    }
+    const keywords = MindTraceKeywordService.extractKeywords(
+      getTextForKeywords(record)
+    );
+    return { ...record, keywords: keywords };
+  }
+
+  /**
+   * 保存前写入 keywords
+   * @param {InspirationRecord} record
+   * @returns {InspirationRecord}
+   */
+  function withKeywords(record) {
+    const keywords = MindTraceKeywordService.extractKeywords(
+      getTextForKeywords(record)
+    );
+    return { ...record, keywords: keywords };
+  }
+
+  /**
+   * 合并 IndexedDB 中的 embedding
+   * @param {InspirationRecord[]} items
+   * @returns {Promise<InspirationRecord[]>}
+   */
+  async function attachEmbeddings(items) {
+    if (!items.length || typeof MindTraceEmbeddingStorage === 'undefined') {
+      return items.map((item) => ({ ...item, embedding: null }));
+    }
+
+    await MindTraceEmbeddingStorage.migrateIfNeeded();
+    const ids = items.map((item) => item.id);
+    const embMap = await MindTraceEmbeddingStorage.getEmbeddingsBatch(ids);
+
+    return items.map((item) => ({
+      ...item,
+      embedding: embMap[item.id] || null,
+    }));
+  }
+
+  /**
+   * 从 storage 读取原始数组（不排序）；旧数据缺 keywords 时补全并回写
+   * @returns {Promise<Array>}
+   */
+  async function getAllRaw() {
+    const result = await chrome.storage.local.get(STORAGE_KEY);
+    let items = result[STORAGE_KEY] || [];
+    let needsPersist = false;
+
+    items = items.map((item) => {
+      const base = stripEmbeddingForStorage(item);
+      if (!Array.isArray(base.keywords)) {
+        needsPersist = true;
+        return ensureKeywords(base);
+      }
+      return base;
+    });
+
+    if (needsPersist && items.length > 0) {
+      await chrome.storage.local.set({
+        [STORAGE_KEY]: items.map(stripEmbeddingForStorage),
+      });
+    }
+
+    return attachEmbeddings(items);
+  }
+
+  /**
+   * 获取全部记录，按创建时间倒序
+   * @returns {Promise<Array<InspirationRecord>>}
+   */
+  async function getAll() {
+    const items = await getAllRaw();
+    return items.sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  /**
+   * 保存一条新记录（插入到数组头部）
+   * @param {InspirationRecord} record
+   * @returns {Promise<InspirationRecord>}
+   */
+  async function save(record) {
+    const items = await getAllRaw();
+    const enriched = withKeywords(record);
+    const forStorage = stripEmbeddingForStorage(enriched);
+    items.unshift(forStorage);
+    await chrome.storage.local.set({
+      [STORAGE_KEY]: items.map(stripEmbeddingForStorage),
+    });
+
+    if (typeof MindTraceEmbeddingService !== 'undefined') {
+      MindTraceEmbeddingService.scheduleEmbedding(enriched);
+    }
+
+    return { ...enriched, embedding: null };
+  }
+
+  /**
+   * 按 id 合并更新记录（保留 id、createdAt；写入 updatedAt）
+   * @param {string} id
+   * @param {Partial<InspirationRecord>} partialData
+   * @returns {Promise<InspirationRecord>}
+   */
+  async function updateById(id, partialData) {
+    const items = await getAllRaw();
+    const index = items.findIndex((item) => item.id === id);
+    if (index === -1) {
+      throw new Error(`Record not found: ${id}`);
+    }
+
+    const existing = items[index];
+    const merged = {
+      ...existing,
+      ...partialData,
+      id: existing.id,
+      createdAt: existing.createdAt,
+      updatedAt: Date.now(),
+    };
+
+    if (!Array.isArray(merged.versionHistory)) {
+      merged.versionHistory = [];
+    }
+
+    const enriched = withKeywords(merged);
+    const forStorage = stripEmbeddingForStorage(enriched);
+    items[index] = forStorage;
+    await chrome.storage.local.set({
+      [STORAGE_KEY]: items.map(stripEmbeddingForStorage),
+    });
+
+    if (typeof MindTraceEmbeddingService !== 'undefined') {
+      MindTraceEmbeddingService.scheduleEmbedding(enriched);
+    }
+
+    return { ...enriched, embedding: null };
+  }
+
+  /**
+   * 按 id 删除记录
+   * @param {string} id
+   * @returns {Promise<void>}
+   */
+  async function deleteById(id) {
+    const result = await chrome.storage.local.get(STORAGE_KEY);
+    let items = result[STORAGE_KEY] || [];
+    items = items.filter((item) => item.id !== id);
+    await chrome.storage.local.set({ [STORAGE_KEY]: items });
+
+    if (typeof MindTraceEmbeddingStorage !== 'undefined') {
+      await MindTraceEmbeddingStorage.deleteEmbedding(id);
+    }
+    if (typeof MindTraceEmbeddingService !== 'undefined') {
+      MindTraceEmbeddingService.invalidateRecord(id);
+    }
+  }
+
+  /**
+   * 按 id 获取单条记录
+   * @param {string} id
+   * @returns {Promise<InspirationRecord|undefined>}
+   */
+  async function getById(id) {
+    const items = await getAllRaw();
+    return items.find((item) => item.id === id);
+  }
+
+  /**
+   * 简单搜索：匹配原文、想法、页面标题
+   * @param {string} query
+   * @returns {Promise<Array<InspirationRecord>>}
+   */
+  async function search(query) {
+    const items = await getAll();
+    const q = (query || '').trim().toLowerCase();
+    if (!q) {
+      return items;
+    }
+    return items.filter((item) => {
+      const fields = [
+        item.selectedText,
+        item.note,
+        item.pageTitle,
+        item.pageUrl,
+      ];
+      return fields.some(
+        (f) => f && String(f).toLowerCase().includes(q)
+      );
+    });
+  }
+
+  /**
+   * 清空全部（预留，popup 暂未暴露）
+   * @returns {Promise<void>}
+   */
+  async function clearAll() {
+    await chrome.storage.local.set({ [STORAGE_KEY]: [] });
+  }
+
+  /**
+   * 记录总数
+   * @returns {Promise<number>}
+   */
+  async function count() {
+    const result = await chrome.storage.local.get(STORAGE_KEY);
+    const items = result[STORAGE_KEY] || [];
+    return items.length;
+  }
+
+  return {
+    STORAGE_KEY,
+    getAll,
+    getAllRaw,
+    save,
+    updateById,
+    deleteById,
+    getById,
+    search,
+    clearAll,
+    count,
+    ensureKeywords,
+    withKeywords,
+    stripEmbeddingForStorage,
+  };
+})();
+
+/**
+ * @typedef {Object} InspirationRecord
+ * @property {string} id - 唯一标识
+ * @property {string} selectedText - 用户划选的原文
+ * @property {string} note - 用户的想法
+ * @property {string} pageTitle - 来源网页标题
+ * @property {string} pageUrl - 来源网页 URL
+ * @property {number} createdAt - 创建时间戳（毫秒）
+ * @property {number} [updatedAt] - 最近更新时间戳（毫秒）
+ * @property {Array} [versionHistory] - 版本历史（预留）
+ * @property {string[]} [keywords] - 本地提取的关键词，用于思维关联降级
+ * @property {number[]|null} [embedding] - 384 维语义向量（运行时从 IndexedDB 合并，不持久化到 chrome.storage）
+ */
