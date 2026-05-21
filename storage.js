@@ -90,10 +90,44 @@ const MindTraceStorage = (function () {
    * 从 storage 读取原始数组（不排序）；旧数据缺 keywords 时补全并回写
    * @returns {Promise<Array>}
    */
+  /**
+   * 旧数据迁移：为无 gardenId 的思考归入默认花园
+   * @param {InspirationRecord[]} items
+   * @returns {Promise<{ items: InspirationRecord[], changed: boolean }>}
+   */
+  async function migrateThoughtGardenIds(items) {
+    if (typeof MindTraceGardenService !== 'undefined') {
+      await MindTraceGardenService.migrateIfNeeded();
+    }
+    const defaultId =
+      typeof MindTraceGardenService !== 'undefined'
+        ? MindTraceGardenService.DEFAULT_GARDEN_ID
+        : 'garden-default';
+
+    let changed = false;
+    const migrated = (items || []).map((item) => {
+      let base = stripEmbeddingForStorage(item);
+      base = MindTraceUtils.normalizeRecord(base);
+      if (!item.gardenId) {
+        changed = true;
+        base = { ...base, gardenId: defaultId };
+      }
+      return base;
+    });
+
+    return { items: migrated, changed };
+  }
+
   async function getAllRaw() {
     const result = await chrome.storage.local.get(STORAGE_KEY);
     let items = result[STORAGE_KEY] || [];
     let needsPersist = false;
+
+    const gardenMigration = await migrateThoughtGardenIds(items);
+    items = gardenMigration.items;
+    if (gardenMigration.changed) {
+      needsPersist = true;
+    }
 
     items = items.map((item) => {
       let base = stripEmbeddingForStorage(item);
@@ -121,11 +155,32 @@ const MindTraceStorage = (function () {
   }
 
   /**
+   * @param {string} [gardenId]
+   * @returns {Promise<InspirationRecord[]>}
+   */
+  async function getAllForGarden(gardenId) {
+    const items = await getAllRaw();
+    if (!gardenId) {
+      return items;
+    }
+    const resolved =
+      typeof MindTraceGardenService !== 'undefined'
+        ? MindTraceGardenService.resolveGardenId({ gardenId })
+        : gardenId;
+    return items.filter(
+      (item) =>
+        (typeof MindTraceGardenService !== 'undefined'
+          ? MindTraceGardenService.resolveGardenId(item)
+          : item.gardenId || 'garden-default') === resolved
+    );
+  }
+
+  /**
    * 获取全部记录，按创建时间倒序
    * @returns {Promise<Array<InspirationRecord>>}
    */
-  async function getAll() {
-    const items = await getAllRaw();
+  async function getAll(gardenId) {
+    const items = gardenId ? await getAllForGarden(gardenId) : await getAllRaw();
     return items.sort((a, b) => b.createdAt - a.createdAt);
   }
 
@@ -163,6 +218,9 @@ const MindTraceStorage = (function () {
 
   async function save(record, options) {
     const normalized = MindTraceUtils.normalizeRecord(record);
+    if (!normalized.gardenId && typeof MindTraceGardenService !== 'undefined') {
+      normalized.gardenId = await MindTraceGardenService.getCurrentGardenId();
+    }
     if (!MindTraceUtils.hasRequiredThought(normalized)) {
       throw new Error('THOUGHT_CONTENT_REQUIRED');
     }
@@ -183,6 +241,10 @@ const MindTraceStorage = (function () {
 
     if (typeof MindTraceEmbeddingService !== 'undefined') {
       MindTraceEmbeddingService.scheduleEmbedding(enriched);
+    }
+
+    if (typeof MindTraceInsightService !== 'undefined') {
+      MindTraceInsightService.onThoughtsChanged(enriched.gardenId);
     }
 
     return { ...enriched, embedding: null };
@@ -232,6 +294,10 @@ const MindTraceStorage = (function () {
       MindTraceEmbeddingService.scheduleEmbedding(enriched);
     }
 
+    if (typeof MindTraceInsightService !== 'undefined') {
+      MindTraceInsightService.onThoughtsChanged(enriched.gardenId);
+    }
+
     return { ...enriched, embedding: null };
   }
 
@@ -243,6 +309,12 @@ const MindTraceStorage = (function () {
   async function deleteById(id) {
     const result = await chrome.storage.local.get(STORAGE_KEY);
     let items = result[STORAGE_KEY] || [];
+    const removed = items.find((item) => item.id === id);
+    const removedGardenId = removed
+      ? typeof MindTraceGardenService !== 'undefined'
+        ? MindTraceGardenService.resolveGardenId(removed)
+        : removed.gardenId
+      : null;
     items = items.filter((item) => item.id !== id);
     await chrome.storage.local.set({ [STORAGE_KEY]: items });
 
@@ -254,6 +326,9 @@ const MindTraceStorage = (function () {
     }
     if (typeof MindTraceEmbeddingService !== 'undefined') {
       MindTraceEmbeddingService.invalidateRecord(id);
+    }
+    if (typeof MindTraceInsightService !== 'undefined') {
+      MindTraceInsightService.onThoughtsChanged(removedGardenId);
     }
   }
 
@@ -272,8 +347,32 @@ const MindTraceStorage = (function () {
    * @param {string} query
    * @returns {Promise<Array<InspirationRecord>>}
    */
-  async function search(query) {
-    const items = await getAll();
+  /**
+   * 将某花园下全部思考迁至另一花园（删除花园时调用）
+   * @param {string} fromGardenId
+   * @param {string} toGardenId
+   * @returns {Promise<number>}
+   */
+  async function reassignGarden(fromGardenId, toGardenId) {
+    const result = await chrome.storage.local.get(STORAGE_KEY);
+    let items = result[STORAGE_KEY] || [];
+    let count = 0;
+    items = items.map((item) => {
+      const gid = item.gardenId || 'garden-default';
+      if (gid === fromGardenId) {
+        count += 1;
+        return { ...item, gardenId: toGardenId };
+      }
+      return item;
+    });
+    if (count > 0) {
+      await chrome.storage.local.set({ [STORAGE_KEY]: items });
+    }
+    return count;
+  }
+
+  async function search(query, gardenId) {
+    const items = gardenId ? await getAll(gardenId) : await getAll();
     const q = (query || '').trim().toLowerCase();
     if (!q) {
       return items;
@@ -303,7 +402,11 @@ const MindTraceStorage = (function () {
    * 记录总数
    * @returns {Promise<number>}
    */
-  async function count() {
+  async function count(gardenId) {
+    if (gardenId) {
+      const items = await getAllForGarden(gardenId);
+      return items.length;
+    }
     const result = await chrome.storage.local.get(STORAGE_KEY);
     const items = result[STORAGE_KEY] || [];
     return items.length;
@@ -313,6 +416,8 @@ const MindTraceStorage = (function () {
     STORAGE_KEY,
     getAll,
     getAllRaw,
+    getAllForGarden,
+    reassignGarden,
     save,
     persistEvidenceImages,
     updateById,
@@ -330,6 +435,7 @@ const MindTraceStorage = (function () {
 /**
  * @typedef {Object} InspirationRecord
  * @property {string} id - 唯一标识
+ * @property {string} gardenId - 所属认知花园
  * @property {string} selectedText - 用户划选的原文
  * @property {string} note - 用户的想法
  * @property {string} pageTitle - 来源网页标题

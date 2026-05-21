@@ -1159,6 +1159,354 @@ body.garden {
   }
 }
 
+/* —— 认知洞察（Insight Engine） —— */
+.cognition-mirror {
+  margin-bottom: 28px;
+  padding: 22px 24px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    145deg,
+    #f8f6ff 0%,
+    #f3f1fa 38%,
+    #faf9f7 100%
+  );
+  border: 1px solid rgba(100, 120, 200, 0.14);
+  box-shadow: var(--shadow-card);
+}
+
+.cognition-mirror[hidden] {
+  display: none !important;
+}
+
+.cognition-mirror-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.cognition-mirror-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.cognition-mirror-sub {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cognition-mirror-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #4a5a9a;
+  background: rgba(74, 90, 154, 0.1);
+  border: 1px solid rgba(74, 90, 154, 0.2);
+}
+
+.cognition-mirror-badge[hidden] {
+  display: none !important;
+}
+
+.cognition-mirror-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cognition-observe {
+  padding: 14px 16px 14px 18px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(200, 205, 220, 0.35);
+  border-left: 3px solid var(--observe-accent, #7b8fd4);
+}
+
+.cognition-observe--theme {
+  --observe-accent: #7b8fd4;
+}
+
+.cognition-observe--long-term {
+  --observe-accent: #6ba88a;
+}
+
+.cognition-observe--evolution {
+  --observe-accent: #c49a5a;
+}
+
+.cognition-observe--garden {
+  --observe-accent: #9b7fd4;
+}
+
+.cognition-observe-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.cognition-observe-body {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+.cognition-mirror-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 8px 0;
+}
+
+/* —— Cognitive Garden 侧栏（认知宇宙） —— */
+.garden-shell--with-rail {
+  display: flex;
+  align-items: stretch;
+  min-height: 100vh;
+}
+
+.garden-universe-rail {
+  flex: 0 0 248px;
+  width: 248px;
+  padding: 28px 16px 24px;
+  background: linear-gradient(165deg, #0f1224 0%, #1a1f3a 42%, #12182e 100%);
+  border-right: 1px solid rgba(120, 140, 220, 0.12);
+  color: rgba(220, 228, 255, 0.88);
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  min-height: 100vh;
+  overflow-y: auto;
+}
+
+.garden-rail-head {
+  padding: 0 8px 20px;
+}
+
+.garden-rail-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(180, 195, 255, 0.75);
+}
+
+.garden-rail-sub {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(160, 175, 220, 0.55);
+}
+
+.garden-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.garden-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 12px;
+  border: 1px solid rgba(120, 150, 255, 0.14);
+  border-radius: 12px;
+  background: linear-gradient(
+    135deg,
+    rgba(40, 52, 100, 0.45) 0%,
+    rgba(24, 32, 68, 0.35) 100%
+  );
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.12s ease;
+}
+
+.garden-card:hover {
+  border-color: rgba(150, 180, 255, 0.35);
+  box-shadow: 0 4px 20px rgba(40, 60, 140, 0.25);
+}
+
+.garden-card.is-active {
+  border-color: rgba(170, 200, 255, 0.55);
+  background: linear-gradient(
+    135deg,
+    rgba(70, 90, 180, 0.55) 0%,
+    rgba(45, 58, 120, 0.5) 100%
+  );
+  box-shadow:
+    0 0 0 1px rgba(180, 210, 255, 0.15),
+    0 8px 28px rgba(30, 50, 120, 0.35);
+}
+
+.garden-card-icon {
+  flex-shrink: 0;
+  font-size: 20px;
+  line-height: 1;
+  filter: drop-shadow(0 0 8px rgba(180, 200, 255, 0.35));
+}
+
+.garden-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.garden-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(235, 240, 255, 0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.garden-card-meta {
+  margin-top: 3px;
+  font-size: 11px;
+  color: rgba(160, 180, 230, 0.6);
+}
+
+.garden-create-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(200, 215, 255, 0.9);
+  background: rgba(60, 80, 160, 0.2);
+  border: 1px dashed rgba(140, 170, 255, 0.35);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.garden-create-btn:hover {
+  background: rgba(80, 100, 200, 0.28);
+  border-color: rgba(170, 200, 255, 0.5);
+}
+
+.garden-create-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.garden-main-column {
+  flex: 1;
+  min-width: 0;
+}
+
+.garden-dialog {
+  border: none;
+  border-radius: 14px;
+  padding: 0;
+  max-width: 400px;
+  width: calc(100% - 32px);
+  background: #fff;
+  box-shadow: 0 20px 60px rgba(20, 24, 50, 0.2);
+}
+
+.garden-dialog::backdrop {
+  background: rgba(10, 14, 30, 0.45);
+}
+
+.garden-dialog-form {
+  padding: 24px;
+}
+
+.garden-dialog-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.garden-dialog-label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.garden-dialog-input,
+.garden-dialog-textarea {
+  width: 100%;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: var(--font);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.garden-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.garden-dialog-cancel,
+.garden-dialog-submit {
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+
+.garden-dialog-cancel {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+}
+
+.garden-dialog-submit {
+  background: linear-gradient(135deg, #4a5a9a 0%, #3d4d88 100%);
+  color: #fff;
+  border-color: transparent;
+}
+
+@media (max-width: 900px) {
+  .garden-shell--with-rail {
+    flex-direction: column;
+  }
+
+  .garden-universe-rail {
+    position: relative;
+    width: 100%;
+    flex: none;
+    min-height: auto;
+    border-right: none;
+    border-bottom: 1px solid rgba(120, 140, 220, 0.12);
+  }
+
+  .garden-list {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .garden-card {
+    flex: 0 0 auto;
+    min-width: 160px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .timeline-item {
     animation: none;

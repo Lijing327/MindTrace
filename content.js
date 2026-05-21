@@ -89,6 +89,11 @@
           <label class="mt-label">原文</label>
           <blockquote class="mt-quote" data-ref="quote"></blockquote>
         </div>
+        <div class="mt-garden-field" data-ref="garden-field">
+          <label class="mt-label" for="mt-garden-select">认知花园</label>
+          <select id="mt-garden-select" class="mt-garden-select" data-ref="garden-select" aria-label="选择认知花园"></select>
+          <button type="button" class="mt-btn-link mt-garden-new" data-action="new-garden" title="快速开辟新花园">+ 新花园</button>
+        </div>
         <label class="mt-label" for="mt-note-input" data-ref="note-label">随想</label>
         <textarea
           id="mt-note-input"
@@ -117,6 +122,9 @@
     panel.querySelector('.mt-panel-close').addEventListener('click', hidePanel);
     panel.querySelector('[data-action="cancel"]').addEventListener('click', hidePanel);
     panel.querySelector('[data-action="save"]').addEventListener('click', onSaveClick);
+    panel
+      .querySelector('[data-action="new-garden"]')
+      .addEventListener('click', onQuickCreateGardenClick);
     panel
       .querySelector('[data-action="capture-moment"]')
       .addEventListener('click', onCaptureMomentClick);
@@ -371,7 +379,56 @@
     }
   }
 
+  /**
+   * 填充认知花园下拉（默认选中最近使用的花园）
+   */
+  async function populateGardenSelect() {
+    if (!panelEl || typeof MindTraceGardenService === 'undefined') {
+      return;
+    }
+    const select = panelEl.querySelector('[data-ref="garden-select"]');
+    if (!select) {
+      return;
+    }
+    try {
+      await MindTraceGardenService.migrateIfNeeded();
+      const gardens = await MindTraceGardenService.getGardens();
+      const currentId = await MindTraceGardenService.getCurrentGardenId();
+      select.innerHTML = gardens
+        .map(
+          (g) =>
+            `<option value="${g.id.replace(/"/g, '&quot;')}">${(g.icon || '🌿') + ' ' + (g.name || '花园')}</option>`
+        )
+        .join('');
+      select.value = currentId;
+    } catch (err) {
+      console.warn('[MindTrace] garden select load failed:', err);
+    }
+  }
+
+  async function onQuickCreateGardenClick() {
+    const name = window.prompt('新花园名称', '新花园');
+    if (!name || !name.trim()) {
+      return;
+    }
+    try {
+      const garden = await MindTraceGardenService.createGarden({
+        name: name.trim(),
+      });
+      await populateGardenSelect();
+      const select = panelEl.querySelector('[data-ref="garden-select"]');
+      if (select) {
+        select.value = garden.id;
+      }
+      showToast(`已开辟「${garden.name}」`);
+    } catch (err) {
+      console.warn('[MindTrace] quick create garden failed:', err);
+      showToast('创建花园失败');
+    }
+  }
+
   function showPanel() {
+    populateGardenSelect();
     panelEl.style.top = `${Math.max(80, window.innerHeight * 0.12)}px`;
     panelEl.hidden = false;
     requestAnimationFrame(() => {
@@ -620,11 +677,22 @@
         ? panelEl.dataset.pageUrl
         : window.location.href;
 
+    const gardenSelect = panelEl.querySelector('[data-ref="garden-select"]');
+    const gardenId =
+      gardenSelect && gardenSelect.value
+        ? gardenSelect.value
+        : await MindTraceGardenService.getCurrentGardenId();
+
+    if (typeof MindTraceGardenService !== 'undefined' && gardenId) {
+      await MindTraceGardenService.setCurrentGardenId(gardenId);
+    }
+
     const record = MindTraceUtils.buildRecord({
       selectedText: panelMode === 'selection' ? currentSelectedText : '',
       note,
       pageTitle,
       pageUrl,
+      gardenId,
     });
 
     const saveBtn = panelEl.querySelector('[data-action="save"]');

@@ -47,6 +47,12 @@ const MindTraceGraphService = (function () {
       for (let j = i + 1; j < withEmb.length; j++) {
         const a = withEmb[i];
         const b = withEmb[j];
+        if (
+          typeof MindTraceGardenService !== 'undefined' &&
+          !MindTraceGardenService.sameGarden(a, b)
+        ) {
+          continue;
+        }
         const similarity = MindTraceVectorService.cosineSimilarity(
           a.embedding,
           b.embedding
@@ -87,6 +93,12 @@ const MindTraceGraphService = (function () {
       for (let j = i + 1; j < thoughts.length; j++) {
         const a = thoughts[i];
         const b = thoughts[j];
+        if (
+          typeof MindTraceGardenService !== 'undefined' &&
+          !MindTraceGardenService.sameGarden(a, b)
+        ) {
+          continue;
+        }
         const score = MindTraceSimilarityService.calculateSimilarity(a, b);
         if (score < 1) {
           continue;

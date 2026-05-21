@@ -66,9 +66,12 @@
    */
   async function loadAndRender() {
     try {
-      const all = await MindTraceStorage.getAll();
+      await MindTraceGardenService.migrateIfNeeded();
+      const gardenId = await MindTraceGardenService.getCurrentGardenId();
+      const garden = await MindTraceGardenService.getGardenById(gardenId);
+      const all = await MindTraceStorage.getAll(gardenId);
       const recent = all.slice(0, RECENT_LIMIT);
-      renderList(recent, all.length);
+      renderList(recent, all.length, garden);
     } catch (err) {
       console.error('[MindTrace Popup] 加载失败:', err);
       listContainer.innerHTML =
@@ -88,18 +91,23 @@
    * @param {Array} items
    * @param {number} totalCount
    */
-  function renderList(items, totalCount) {
+  function renderList(items, totalCount, garden) {
+    const gardenHint = garden
+      ? `<p class="list-garden-hint">${MindTraceUtils.escapeHtml(garden.icon || '🌿')} ${MindTraceUtils.escapeHtml(garden.name)}</p>`
+      : '';
+
     if (!items.length) {
       listContainer.innerHTML = `
+        ${gardenHint}
         <div class="list-empty">
           <div class="list-empty-icon">✦</div>
-          <p>还没有灵感记录<br/>先点击扩展图标，再在网页划词并点「记录灵感」</p>
+          <p>当前花园还没有记录<br/>先点击扩展图标，再在网页划词并点「记录灵感」</p>
         </div>
       `;
       return;
     }
 
-    let html = items.map((item) => renderCard(item)).join('');
+    let html = gardenHint + items.map((item) => renderCard(item)).join('');
 
     if (totalCount > RECENT_LIMIT) {
       html += `

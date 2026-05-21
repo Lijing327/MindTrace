@@ -20,11 +20,18 @@ function formatNodeDate(timestamp) {
   return `${y}-${m}-${day}`;
 }
 
-function openThoughtInGarden(thoughtId) {
+function getGardenIdFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('garden') || null;
+}
+
+function openThoughtInGarden(thoughtId, gardenId) {
   if (!thoughtId) {
     return;
   }
-  window.location.href = `dashboard.html?thought=${encodeURIComponent(thoughtId)}`;
+  const g =
+    gardenId || getGardenIdFromUrl() || 'garden-default';
+  window.location.href = `dashboard.html?thought=${encodeURIComponent(thoughtId)}&garden=${encodeURIComponent(g)}`;
 }
 
 function clusterHue(clusterId) {
@@ -78,15 +85,24 @@ function CosmosGraph() {
     return () => window.removeEventListener('resize', resize);
   }, [resize]);
 
+  const gardenId = useMemo(() => getGardenIdFromUrl(), []);
+
   useEffect(() => {
     let cancelled = false;
 
     async function loadGraph() {
       setStatus('loading');
-      setStatusDetail('正在载入思考…');
+      setStatusDetail('正在载入当前花园的思考…');
 
       try {
-        const thoughts = await MindTraceStorage.getAllRaw();
+        const resolvedGarden =
+          gardenId ||
+          (typeof MindTraceGardenService !== 'undefined'
+            ? await MindTraceGardenService.getCurrentGardenId()
+            : null);
+        const thoughts = resolvedGarden
+          ? await MindTraceStorage.getAllForGarden(resolvedGarden)
+          : await MindTraceStorage.getAllRaw();
 
         if (!thoughts.length) {
           if (!cancelled) {
@@ -132,7 +148,7 @@ function CosmosGraph() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [gardenId]);
 
   useEffect(() => {
     const fg = fgRef.current;
@@ -302,7 +318,7 @@ function CosmosGraph() {
           <button
             type="button"
             className="cosmos-selection-btn"
-            onClick={() => openThoughtInGarden(selectedNode.id)}
+            onClick={() => openThoughtInGarden(selectedNode.id, gardenId)}
           >
             在思维花园中查看 →
           </button>

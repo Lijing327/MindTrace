@@ -42,6 +42,12 @@ const MindTraceRelationService = (function () {
       if (!other || other.id === currentRecord.id) {
         return;
       }
+      if (
+        typeof MindTraceGardenService !== 'undefined' &&
+        !MindTraceGardenService.sameGarden(currentRecord, other)
+      ) {
+        return;
+      }
 
       const otherEmb = other.embedding;
       if (!Array.isArray(otherEmb) || !otherEmb.length) {
@@ -72,6 +78,12 @@ const MindTraceRelationService = (function () {
 
     allRecords.forEach((other) => {
       if (!other || other.id === currentRecord.id) {
+        return;
+      }
+      if (
+        typeof MindTraceGardenService !== 'undefined' &&
+        !MindTraceGardenService.sameGarden(currentRecord, other)
+      ) {
         return;
       }
 

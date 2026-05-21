@@ -8,6 +8,7 @@
 /** @type {readonly string[]} */
 const CONTENT_SCRIPT_FILES = [
   'utils.js',
+  'services/garden.service.js',
   'services/keyword.service.js',
   'services/image-storage.service.js',
   'storage.js',

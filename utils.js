@@ -129,8 +129,13 @@ const MindTraceUtils = (function () {
       return record;
     }
     const images = Array.isArray(record.images) ? record.images.filter(Boolean) : [];
+    const defaultGardenId =
+      typeof MindTraceGardenService !== 'undefined'
+        ? MindTraceGardenService.DEFAULT_GARDEN_ID
+        : 'garden-default';
     return {
       ...record,
+      gardenId: record.gardenId || defaultGardenId,
       images,
       imageOCRText:
         typeof record.imageOCRText === 'string' ? record.imageOCRText : '',
@@ -138,8 +143,13 @@ const MindTraceUtils = (function () {
   }
 
   function buildRecord(params) {
+    const defaultGardenId =
+      typeof MindTraceGardenService !== 'undefined'
+        ? MindTraceGardenService.DEFAULT_GARDEN_ID
+        : 'garden-default';
     return normalizeRecord({
       id: generateId(),
+      gardenId: (params && params.gardenId) || defaultGardenId,
       selectedText: params.selectedText || '',
       note: params.note || params.content || '',
       pageTitle: params.pageTitle || '',

@@ -56,9 +56,28 @@
   const evidenceLightboxImgEl = evidenceLightboxEl
     ? evidenceLightboxEl.querySelector('.evidence-lightbox-img')
     : null;
+  const gardenListEl = document.getElementById('garden-list');
+  const gardenCreateBtn = document.getElementById('garden-create-btn');
+  const gardenDialogEl = document.getElementById('garden-dialog');
+  const gardenDialogFormEl = document.getElementById('garden-dialog-form');
+  const gardenDialogNameEl = document.getElementById('garden-dialog-name');
+  const gardenDialogDescEl = document.getElementById('garden-dialog-desc');
+  const gardenDialogCancelEl = document.getElementById('garden-dialog-cancel');
+  const mastheadGardenNameEl = document.getElementById('masthead-garden-name');
+  const mastheadGardenDescEl = document.getElementById('masthead-garden-desc');
+  const cosmosLinkEl = document.getElementById('cosmos-link');
+  const cognitionMirrorEl = document.getElementById('cognition-mirror');
+  const cognitionMirrorListEl = document.getElementById('cognition-mirror-list');
+  const cognitionMirrorBadgeEl = document.getElementById('cognition-mirror-badge');
 
   /** @type {Set<string>} */
   const imageObjectUrlCache = new Set();
+
+  let insightRefreshToken = 0;
+
+  /** @type {Garden[]} */
+  let gardens = [];
+  let currentGardenId = MindTraceGardenService.DEFAULT_GARDEN_ID;
 
   let allItems = [];
   let embeddingBackfillRunning = false;
@@ -160,9 +179,28 @@
   }
 
   async function init() {
-    await reloadAllData();
+    await setupGardenSwitcher();
 
     const focusId = getFocusThoughtIdFromUrl();
+    if (focusId) {
+      try {
+        const thought = await MindTraceStorage.getById(focusId);
+        if (thought) {
+          const gid = MindTraceGardenService.resolveGardenId(thought);
+          if (gid !== currentGardenId) {
+            currentGardenId = gid;
+            await MindTraceGardenService.setCurrentGardenId(gid);
+            renderGardenRail();
+            updateGardenChrome();
+          }
+        }
+      } catch (err) {
+        console.warn('[MindTrace] focus thought garden resolve failed:', err);
+      }
+    }
+
+    await reloadAllData();
+
     if (focusId) {
       await focusThoughtInTimeline(focusId);
     }
@@ -185,12 +223,25 @@
     }
 
     chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === 'local' && changes[MindTraceStorage.STORAGE_KEY]) {
+      if (area !== 'local') {
+        return;
+      }
+      const gardenChanged =
+        changes[MindTraceGardenService.STORAGE_KEY] ||
+        changes[MindTraceGardenService.CURRENT_GARDEN_KEY];
+      if (gardenChanged) {
+        setupGardenSwitcher().then(() => reloadAllData(searchInput.value));
+        return;
+      }
+      if (changes[MindTraceStorage.STORAGE_KEY]) {
         if (skipNextStorageReload) {
           skipNextStorageReload = false;
           return;
         }
         reloadAllData(searchInput.value);
+      }
+      if (changes[MindTraceInsightService.STORAGE_KEY]) {
+        refreshCognitionMirrorFromCache();
       }
     });
 
@@ -365,6 +416,7 @@
       if (MindTraceEmbeddingService.getStatus() !== 'loading') {
         setEmbeddingBackfillStatus('');
       }
+      scheduleCognitionMirrorRefresh();
     }
   }
 
@@ -399,12 +451,305 @@
     });
   }
 
+  async function setupGardenSwitcher() {
+    await MindTraceGardenService.migrateIfNeeded();
+    gardens = await MindTraceGardenService.getGardens();
+    currentGardenId = await MindTraceGardenService.getCurrentGardenId();
+    renderGardenRail();
+    updateGardenChrome();
+    bindGardenRailEvents();
+  }
+
+  function updateGardenChrome() {
+    const garden = gardens.find((g) => g.id === currentGardenId);
+    if (mastheadGardenNameEl && garden) {
+      mastheadGardenNameEl.textContent = garden.name;
+    }
+    if (mastheadGardenDescEl) {
+      const desc =
+        (garden && garden.description) ||
+        '一片慢慢生长的个人思考空间';
+      mastheadGardenDescEl.textContent = desc;
+    }
+    if (cosmosLinkEl) {
+      cosmosLinkEl.href = `graph.html?garden=${encodeURIComponent(currentGardenId)}`;
+    }
+    document.title = garden
+      ? `MindTrace — ${garden.name}`
+      : 'MindTrace — 思维花园';
+  }
+
+  /**
+   * @param {Garden[]} list
+   * @returns {Promise<Map<string, number>>}
+   */
+  async function countThoughtsPerGarden(list) {
+    const all = await MindTraceStorage.getAllRaw();
+    const counts = new Map();
+    list.forEach((g) => counts.set(g.id, 0));
+    all.forEach((item) => {
+      const gid = MindTraceGardenService.resolveGardenId(item);
+      counts.set(gid, (counts.get(gid) || 0) + 1);
+    });
+    return counts;
+  }
+
+  async function renderGardenRail() {
+    if (!gardenListEl) {
+      return;
+    }
+    const counts = await countThoughtsPerGarden(gardens);
+    gardenListEl.innerHTML = gardens
+      .map((g) => {
+        const active = g.id === currentGardenId ? ' is-active' : '';
+        const n = counts.get(g.id) || 0;
+        const accent = g.color || '#6b8cce';
+        return `
+          <button
+            type="button"
+            class="garden-card${active}"
+            role="option"
+            aria-selected="${g.id === currentGardenId}"
+            data-garden-id="${MindTraceUtils.escapeHtml(g.id)}"
+            style="--garden-accent: ${MindTraceUtils.escapeHtml(accent)}"
+          >
+            <span class="garden-card-icon" aria-hidden="true">${MindTraceUtils.escapeHtml(g.icon || '🌿')}</span>
+            <span class="garden-card-body">
+              <span class="garden-card-name">${MindTraceUtils.escapeHtml(g.name)}</span>
+              <span class="garden-card-meta">${n} 条思考</span>
+            </span>
+          </button>
+        `;
+      })
+      .join('');
+  }
+
+  function bindGardenRailEvents() {
+    if (!gardenListEl || gardenListEl.dataset.bound === '1') {
+      return;
+    }
+    gardenListEl.dataset.bound = '1';
+    gardenListEl.addEventListener('click', onGardenCardClick);
+
+    if (gardenCreateBtn && gardenCreateBtn.dataset.bound !== '1') {
+      gardenCreateBtn.dataset.bound = '1';
+      gardenCreateBtn.addEventListener('click', openGardenCreateDialog);
+    }
+    if (gardenDialogCancelEl && gardenDialogCancelEl.dataset.bound !== '1') {
+      gardenDialogCancelEl.dataset.bound = '1';
+      gardenDialogCancelEl.addEventListener('click', () => {
+        if (gardenDialogEl) {
+          gardenDialogEl.close();
+        }
+      });
+    }
+    if (gardenDialogFormEl && gardenDialogFormEl.dataset.bound !== '1') {
+      gardenDialogFormEl.dataset.bound = '1';
+      gardenDialogFormEl.addEventListener('submit', onGardenDialogSubmit);
+    }
+  }
+
+  function openGardenCreateDialog() {
+    if (!gardenDialogEl) {
+      return;
+    }
+    if (gardenDialogNameEl) {
+      gardenDialogNameEl.value = '';
+    }
+    if (gardenDialogDescEl) {
+      gardenDialogDescEl.value = '';
+    }
+    gardenDialogEl.showModal();
+    if (gardenDialogNameEl) {
+      gardenDialogNameEl.focus();
+    }
+  }
+
+  async function onGardenDialogSubmit(event) {
+    event.preventDefault();
+    const name = (gardenDialogNameEl && gardenDialogNameEl.value.trim()) || '';
+    if (!name) {
+      return;
+    }
+    const description =
+      (gardenDialogDescEl && gardenDialogDescEl.value.trim()) || '';
+    try {
+      const garden = await MindTraceGardenService.createGarden({
+        name,
+        description,
+      });
+      gardens = await MindTraceGardenService.getGardens();
+      currentGardenId = garden.id;
+      if (gardenDialogEl) {
+        gardenDialogEl.close();
+      }
+      await switchToGarden(garden.id);
+    } catch (err) {
+      console.error('[MindTrace] 创建花园失败:', err);
+      alert('创建花园失败，请稍后再试');
+    }
+  }
+
+  async function onGardenCardClick(event) {
+    const card = event.target.closest('[data-garden-id]');
+    if (!card) {
+      return;
+    }
+    const gardenId = card.getAttribute('data-garden-id');
+    if (!gardenId || gardenId === currentGardenId) {
+      return;
+    }
+    await switchToGarden(gardenId);
+  }
+
+  async function switchToGarden(gardenId) {
+    currentGardenId = gardenId;
+    await MindTraceGardenService.setCurrentGardenId(gardenId);
+    renderGardenRail();
+    updateGardenChrome();
+    await reloadAllData(searchInput.value);
+  }
+
+  /**
+   * @param {string} type
+   * @returns {string}
+   */
+  function insightObserveClass(type) {
+    switch (type) {
+      case MindTraceInsightService.INSIGHT_TYPES.TOP_THEME:
+        return 'cognition-observe--theme';
+      case MindTraceInsightService.INSIGHT_TYPES.LONG_TERM:
+        return 'cognition-observe--long-term';
+      case MindTraceInsightService.INSIGHT_TYPES.EVOLUTION:
+        return 'cognition-observe--evolution';
+      case MindTraceInsightService.INSIGHT_TYPES.GARDEN_FOCUS:
+        return 'cognition-observe--garden';
+      default:
+        return 'cognition-observe--theme';
+    }
+  }
+
+  /**
+   * @param {Insight[]} insights
+   */
+  function renderCognitionMirror(insights) {
+    if (!cognitionMirrorEl || !cognitionMirrorListEl) {
+      return;
+    }
+
+    const list = (insights || []).filter((i) => i && i.content);
+    if (!list.length) {
+      cognitionMirrorEl.hidden = true;
+      cognitionMirrorListEl.innerHTML = '';
+      return;
+    }
+
+    cognitionMirrorEl.hidden = false;
+    cognitionMirrorListEl.innerHTML = list
+      .map((insight) => {
+        const cls = insightObserveClass(insight.type);
+        const title = MindTraceUtils.escapeHtml(insight.title || '观察');
+        const body = MindTraceUtils.escapeHtml(insight.content || '');
+        return `
+          <article class="cognition-observe ${cls}" data-insight-type="${MindTraceUtils.escapeHtml(insight.type || '')}">
+            <h3 class="cognition-observe-title">${title}</h3>
+            <p class="cognition-observe-body">${body}</p>
+          </article>
+        `;
+      })
+      .join('');
+  }
+
+  function setCognitionMirrorLoading(loading) {
+    if (cognitionMirrorBadgeEl) {
+      cognitionMirrorBadgeEl.hidden = !loading;
+    }
+  }
+
+  async function refreshCognitionMirrorFromCache() {
+    if (!cognitionMirrorListEl) {
+      return;
+    }
+    try {
+      const gardenInsights =
+        await MindTraceInsightService.getCachedInsights(currentGardenId);
+      let globalFocus = [];
+      if (gardens.length > 1) {
+        const globalAll = await MindTraceInsightService.getCachedInsights(null);
+        globalFocus = globalAll.filter(
+          (i) => i.type === MindTraceInsightService.INSIGHT_TYPES.GARDEN_FOCUS
+        );
+      }
+      renderCognitionMirror([...gardenInsights, ...globalFocus]);
+    } catch (err) {
+      console.warn('[MindTrace] insight cache render failed:', err);
+    }
+  }
+
+  async function loadCognitionMirror() {
+    if (!cognitionMirrorListEl) {
+      return;
+    }
+
+    const token = ++insightRefreshToken;
+    await refreshCognitionMirrorFromCache();
+
+    if (allItems.length < 2) {
+      if (cognitionMirrorEl) {
+        cognitionMirrorEl.hidden = true;
+      }
+      return;
+    }
+
+    setCognitionMirrorLoading(true);
+
+    try {
+      const gardenInsights = await MindTraceInsightService.getInsights(
+        currentGardenId
+      );
+      let merged = [...gardenInsights];
+      if (gardens.length > 1) {
+        const globalAll = await MindTraceInsightService.getInsights(null);
+        const focus = globalAll.filter(
+          (i) => i.type === MindTraceInsightService.INSIGHT_TYPES.GARDEN_FOCUS
+        );
+        merged = [...gardenInsights, ...focus];
+      }
+
+      if (token === insightRefreshToken) {
+        renderCognitionMirror(merged);
+      }
+    } catch (err) {
+      console.warn('[MindTrace] insight load failed:', err);
+    } finally {
+      if (token === insightRefreshToken) {
+        setCognitionMirrorLoading(false);
+      }
+    }
+  }
+
+  function scheduleCognitionMirrorRefresh() {
+    if (typeof MindTraceInsightService === 'undefined') {
+      return;
+    }
+    MindTraceInsightService.scheduleRegenerate(currentGardenId);
+    if (gardens.length > 1) {
+      MindTraceInsightService.scheduleRegenerate(null);
+    }
+    window.setTimeout(() => {
+      if (document.visibilityState === 'visible') {
+        loadCognitionMirror();
+      }
+    }, MindTraceInsightService.DEBOUNCE_MS + 120);
+  }
+
   async function reloadAllData(query) {
     try {
-      allItems = await MindTraceStorage.getAll();
+      allItems = await MindTraceStorage.getAll(currentGardenId);
       renderTodayCard(allItems);
       renderWhisper(allItems);
       await refreshTimeline(query || '');
+      loadCognitionMirror();
       runEmbeddingBackfill();
     } catch (err) {
       console.error('[MindTrace] 加载失败:', err);
@@ -622,7 +967,10 @@
     cancelAllEdits();
     revokeCachedImageUrls();
     try {
-      filteredItems = await MindTraceStorage.search(query || '');
+      filteredItems = await MindTraceStorage.search(
+        query || '',
+        currentGardenId
+      );
       renderedCount = 0;
       timelineEl.innerHTML = '';
       await updateTimelineHeader(filteredItems.length, query);
@@ -643,7 +991,7 @@
   }
 
   async function updateTimelineHeader(shownCount, query) {
-    const total = await MindTraceStorage.count();
+    const total = await MindTraceStorage.count(currentGardenId);
     const q = (query || '').trim();
 
     if (q) {
@@ -1421,15 +1769,16 @@
     exportMdBtn.disabled = true;
 
     try {
-      const items = await MindTraceStorage.getAll();
+      const items = await MindTraceStorage.getAll(currentGardenId);
       if (!items.length) {
-        alert('还没有可导出的思考');
+        alert('当前花园还没有可导出的思考');
         return;
       }
 
+      const garden = gardens.find((g) => g.id === currentGardenId);
       downloadMarkdownFile(
-        buildMarkdownDocument(items),
-        buildExportFilename()
+        buildMarkdownDocument(items, garden),
+        buildExportFilename(garden)
       );
     } catch (err) {
       console.error('[MindTrace] 导出失败:', err);
@@ -1439,9 +1788,12 @@
     }
   }
 
-  function buildMarkdownDocument(items) {
+  function buildMarkdownDocument(items, garden) {
+    const header = garden
+      ? `# 认知花园：${escapeMarkdownHeading(garden.name)}\n\n`
+      : '';
     const blocks = items.map((item) => formatRecordAsMarkdown(item));
-    return blocks.join('\n\n' + RECORD_SEPARATOR + '\n\n') + '\n';
+    return header + blocks.join('\n\n' + RECORD_SEPARATOR + '\n\n') + '\n';
   }
 
   function formatRecordAsMarkdown(record) {
@@ -1498,12 +1850,17 @@
     return String(text).replace(/[\r\n]+/g, ' ').replace(/#/g, '\\#');
   }
 
-  function buildExportFilename() {
+  function buildExportFilename(garden) {
     const d = new Date();
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
-    return `MindTrace-${y}-${m}-${day}.md`;
+    const slug = garden && garden.name
+      ? String(garden.name).replace(/[\\/:*?"<>|]/g, '').slice(0, 16)
+      : '';
+    return slug
+      ? `MindTrace-${slug}-${y}-${m}-${day}.md`
+      : `MindTrace-${y}-${m}-${day}.md`;
   }
 
   function downloadMarkdownFile(content, filename) {

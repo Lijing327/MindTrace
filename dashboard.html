@@ -7,12 +7,25 @@
     <link rel="stylesheet" href="dashboard.css" />
   </head>
   <body class="garden">
-    <div class="garden-shell">
+    <div class="garden-shell garden-shell--with-rail">
+      <aside class="garden-universe-rail" id="garden-rail" aria-label="认知花园">
+        <div class="garden-rail-head">
+          <h2 class="garden-rail-title">认知宇宙</h2>
+          <p class="garden-rail-sub">每片花园，独立生长的思维空间</p>
+        </div>
+        <div id="garden-list" class="garden-list" role="listbox" aria-label="花园列表"></div>
+        <button type="button" id="garden-create-btn" class="garden-create-btn">
+          <span class="garden-create-icon" aria-hidden="true">+</span>
+          开辟新花园
+        </button>
+      </aside>
+
+      <div class="garden-main-column">
       <header class="garden-masthead">
         <div class="garden-masthead-inner">
           <div class="masthead-words">
-            <h1 class="masthead-title">思维花园</h1>
-            <p class="masthead-sub">一片慢慢生长的个人思考空间</p>
+            <h1 class="masthead-title" id="masthead-garden-name">思维花园</h1>
+            <p class="masthead-sub" id="masthead-garden-desc">一片慢慢生长的个人思考空间</p>
           </div>
           <div class="masthead-actions">
           <a
@@ -24,7 +37,8 @@
           <a
             href="graph.html"
             class="btn-cosmos"
-            title="查看思考之间的关联图谱，点击节点可回到时间线"
+            id="cosmos-link"
+            title="查看当前花园内的关联图谱，点击节点可回到时间线"
           >
             <svg class="btn-cosmos-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <circle cx="12" cy="12" r="2"/>
@@ -68,6 +82,17 @@
           />
           <kbd class="search-kbd" aria-hidden="true">⌘ K</kbd>
         </div>
+
+        <section class="cognition-mirror" id="cognition-mirror" aria-label="认知洞察" hidden>
+          <header class="cognition-mirror-head">
+            <div>
+              <h2 class="cognition-mirror-title">认知观察</h2>
+              <p class="cognition-mirror-sub">长期注视你的思考轨迹，而非对话助手</p>
+            </div>
+            <span class="cognition-mirror-badge" id="cognition-mirror-badge" hidden>更新中</span>
+          </header>
+          <div id="cognition-mirror-list" class="cognition-mirror-list"></div>
+        </section>
 
         <div class="insight-row">
           <section class="insight-card" id="today-block" aria-label="今日思考">
@@ -127,10 +152,39 @@
       <footer class="garden-connect" id="garden-connect" aria-label="联系开发者">
         <div class="garden-connect-inner" id="garden-connect-inner"></div>
       </footer>
+      </div>
     </div>
+
+    <dialog id="garden-dialog" class="garden-dialog">
+      <form method="dialog" class="garden-dialog-form" id="garden-dialog-form">
+        <h3 class="garden-dialog-title" id="garden-dialog-title">开辟新花园</h3>
+        <label class="garden-dialog-label" for="garden-dialog-name">花园名称</label>
+        <input
+          type="text"
+          id="garden-dialog-name"
+          class="garden-dialog-input"
+          maxlength="32"
+          placeholder="例如：工作探索、读书笔记…"
+          required
+        />
+        <label class="garden-dialog-label" for="garden-dialog-desc">简介（可选）</label>
+        <textarea
+          id="garden-dialog-desc"
+          class="garden-dialog-textarea"
+          rows="2"
+          maxlength="120"
+          placeholder="这片空间用来安放什么样的思考？"
+        ></textarea>
+        <div class="garden-dialog-actions">
+          <button type="button" class="garden-dialog-cancel" id="garden-dialog-cancel">取消</button>
+          <button type="submit" class="garden-dialog-submit" id="garden-dialog-submit">创建</button>
+        </div>
+      </form>
+    </dialog>
 
     <script src="config/creator.js"></script>
     <script src="utils.js"></script>
+    <script src="services/garden.service.js"></script>
     <script src="services/keyword.service.js"></script>
     <script src="services/similarity.service.js"></script>
     <script src="services/vector.service.js"></script>
@@ -139,6 +193,8 @@
     <script src="services/embedding.service.js"></script>
     <script src="services/relation.service.js"></script>
     <script src="services/cluster.service.js"></script>
+    <script src="services/graph.service.js"></script>
+    <script src="services/insight.service.js"></script>
     <script src="storage.js"></script>
     <div id="evidence-lightbox" class="evidence-lightbox" hidden aria-hidden="true">
       <button type="button" class="evidence-lightbox-close" aria-label="关闭">×</button>
