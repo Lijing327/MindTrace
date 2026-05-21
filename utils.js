@@ -106,15 +106,48 @@ const MindTraceUtils = (function () {
    * @param {Object} params
    * @returns {InspirationRecord}
    */
-  function buildRecord(params) {
+  /**
+   * 认知主体（content）是否有效：必须有用户写下的一段想法
+   * @param {InspirationRecord|Object} record
+   * @returns {boolean}
+   */
+  function hasRequiredThought(record) {
+    if (!record) {
+      return false;
+    }
+    const note = (record.note || record.content || '').trim();
+    return note.length > 0;
+  }
+
+  /**
+   * 规范化记录字段（向下兼容）
+   * @param {InspirationRecord} record
+   * @returns {InspirationRecord}
+   */
+  function normalizeRecord(record) {
+    if (!record) {
+      return record;
+    }
+    const images = Array.isArray(record.images) ? record.images.filter(Boolean) : [];
     return {
+      ...record,
+      images,
+      imageOCRText:
+        typeof record.imageOCRText === 'string' ? record.imageOCRText : '',
+    };
+  }
+
+  function buildRecord(params) {
+    return normalizeRecord({
       id: generateId(),
       selectedText: params.selectedText || '',
-      note: params.note || '',
+      note: params.note || params.content || '',
       pageTitle: params.pageTitle || '',
       pageUrl: params.pageUrl || '',
       createdAt: Date.now(),
-    };
+      images: params.images || [],
+      imageOCRText: params.imageOCRText || '',
+    });
   }
 
   return {
@@ -124,6 +157,8 @@ const MindTraceUtils = (function () {
     escapeHtml,
     truncate,
     debounce,
+    hasRequiredThought,
+    normalizeRecord,
     buildRecord,
   };
 })();

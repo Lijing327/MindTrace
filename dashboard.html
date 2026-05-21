@@ -16,9 +16,15 @@
           </div>
           <div class="masthead-actions">
           <a
+            href="#garden-connect"
+            class="btn-connect"
+            id="masthead-connect-link"
+            hidden
+          >联系作者</a>
+          <a
             href="graph.html"
             class="btn-cosmos"
-            title="认知图谱 · 思维宇宙"
+            title="查看思考之间的关联图谱，点击节点可回到时间线"
           >
             <svg class="btn-cosmos-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <circle cx="12" cy="12" r="2"/>
@@ -117,17 +123,28 @@
           </div>
         </section>
       </main>
+
+      <footer class="garden-connect" id="garden-connect" aria-label="联系开发者">
+        <div class="garden-connect-inner" id="garden-connect-inner"></div>
+      </footer>
     </div>
 
+    <script src="config/creator.js"></script>
     <script src="utils.js"></script>
     <script src="services/keyword.service.js"></script>
     <script src="services/similarity.service.js"></script>
     <script src="services/vector.service.js"></script>
     <script src="services/embedding-storage.service.js"></script>
+    <script src="services/image-storage.service.js"></script>
     <script src="services/embedding.service.js"></script>
     <script src="services/relation.service.js"></script>
     <script src="services/cluster.service.js"></script>
     <script src="storage.js"></script>
+    <div id="evidence-lightbox" class="evidence-lightbox" hidden aria-hidden="true">
+      <button type="button" class="evidence-lightbox-close" aria-label="关闭">×</button>
+      <img class="evidence-lightbox-img" alt="思维证据大图" />
+    </div>
+
     <script src="dashboard.js"></script>
   </body>
 </html>

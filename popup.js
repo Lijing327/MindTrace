@@ -1,6 +1,6 @@
 /**
  * MindTrace — Popup 页面逻辑
- * 仅展示最近 5 条记录，长期管理请打开灵感库
+ * 展示最近 5 条记录，支持就地删除；长期管理请打开灵感库
  */
 
 (function () {
@@ -57,6 +57,8 @@
     if (openDashboardBtn) {
       openDashboardBtn.addEventListener('click', openDashboard);
     }
+
+    listContainer.addEventListener('click', onListClick);
   }
 
   /**
@@ -82,7 +84,7 @@
   }
 
   /**
-   * 渲染列表（只读预览，无删除）
+   * 渲染列表
    * @param {Array} items
    * @param {number} totalCount
    */
@@ -113,8 +115,43 @@
    * @param {InspirationRecord} item
    * @returns {string}
    */
+  /**
+   * 列表点击：删除记录
+   * @param {MouseEvent} event
+   */
+  async function onListClick(event) {
+    const btn = event.target.closest('[data-delete-id]');
+    if (!btn) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const id = btn.getAttribute('data-delete-id');
+    if (!id) {
+      return;
+    }
+
+    if (!confirm('确定删除这条记录吗？删除后无法恢复。')) {
+      return;
+    }
+
+    btn.disabled = true;
+
+    try {
+      await MindTraceStorage.deleteById(id);
+      await loadAndRender();
+    } catch (err) {
+      console.error('[MindTrace Popup] 删除失败:', err);
+      alert('删除失败，请稍后再试');
+      btn.disabled = false;
+    }
+  }
+
   function renderCard(item) {
     const time = MindTraceUtils.formatDateShort(item.createdAt);
+    const idEscaped = MindTraceUtils.escapeHtml(item.id);
     const note = item.note
       ? MindTraceUtils.escapeHtml(
           MindTraceUtils.truncate(item.note, 120)
@@ -130,7 +167,16 @@
 
     return `
       <article class="card">
-        <time class="card-time">${time}</time>
+        <div class="card-head">
+          <time class="card-time">${time}</time>
+          <button
+            type="button"
+            class="btn-card-delete"
+            data-delete-id="${idEscaped}"
+            title="删除这条记录"
+            aria-label="删除这条记录"
+          >×</button>
+        </div>
         <div class="card-note">${note}</div>
         <blockquote class="card-quote">${quote}</blockquote>
         <div class="card-source">

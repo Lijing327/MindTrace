@@ -150,3 +150,151 @@ body.cosmos-body {
   background: linear-gradient(0deg, rgba(5, 8, 22, 0.75) 0%, transparent 100%);
   z-index: 1;
 }
+
+.graph-boot-error {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  max-width: min(92vw, 560px);
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 120, 120, 0.35);
+  background: rgba(40, 12, 20, 0.92);
+  color: #ffb4b4;
+  font-size: 13px;
+  line-height: 1.5;
+  z-index: 99;
+}
+
+.cosmos-guide {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 3;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(139, 156, 255, 0.28);
+  background: rgba(12, 18, 42, 0.92);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+
+.cosmos-guide-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e8eeff;
+  margin-bottom: 8px;
+}
+
+.cosmos-guide-list {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--cosmos-muted);
+}
+
+.cosmos-guide-list li + li {
+  margin-top: 4px;
+}
+
+.cosmos-guide-list strong {
+  color: #c8d8ff;
+  font-weight: 600;
+}
+
+.cosmos-guide-dismiss {
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(139, 156, 255, 0.35);
+  background: rgba(40, 55, 120, 0.45);
+  color: var(--cosmos-accent);
+  cursor: pointer;
+}
+
+.cosmos-guide-dismiss:hover {
+  background: rgba(55, 75, 150, 0.55);
+}
+
+.cosmos-selection {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 3;
+  width: min(300px, calc(100vw - 32px));
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(139, 156, 255, 0.35);
+  background: rgba(10, 14, 36, 0.94);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+}
+
+.cosmos-selection-label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cosmos-muted);
+  margin-bottom: 6px;
+}
+
+.cosmos-selection-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e8eeff;
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.cosmos-selection-meta {
+  font-size: 12px;
+  color: var(--cosmos-muted);
+  margin-bottom: 12px;
+}
+
+.cosmos-selection-btn {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid rgba(139, 156, 255, 0.45);
+  background: linear-gradient(
+    180deg,
+    rgba(70, 90, 180, 0.55) 0%,
+    rgba(45, 60, 130, 0.55) 100%
+  );
+  color: #e8eeff;
+  cursor: pointer;
+}
+
+.cosmos-selection-btn:hover {
+  border-color: rgba(160, 180, 255, 0.65);
+  background: linear-gradient(
+    180deg,
+    rgba(85, 105, 200, 0.65) 0%,
+    rgba(55, 72, 150, 0.65) 100%
+  );
+}
+
+.cosmos-selection-clear {
+  display: block;
+  width: 100%;
+  padding: 4px;
+  font-size: 12px;
+  border: none;
+  background: transparent;
+  color: var(--cosmos-muted);
+  cursor: pointer;
+}
+
+.cosmos-selection-clear:hover {
+  color: var(--cosmos-accent);
+}

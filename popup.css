@@ -130,11 +130,48 @@ body {
   border-color: #e2e8f0;
 }
 
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
 .card-time {
-  display: block;
   font-size: 11px;
   color: #a0aec0;
-  margin-bottom: 6px;
+  min-width: 0;
+}
+
+.btn-card-delete {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  color: #a0aec0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s, background 0.15s;
+}
+
+.btn-card-delete:hover {
+  color: #e53e3e;
+  background: #fff5f5;
+}
+
+.btn-card-delete:active {
+  background: #fed7d7;
+}
+
+.btn-card-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .list-more-hint {

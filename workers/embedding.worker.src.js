@@ -14,6 +14,8 @@ let initPromise = null;
 function configureEnv() {
   env.useBrowserCache = true;
   env.allowRemoteModels = true;
+  // MV3 CSP 不允许 blob: worker；单线程 WASM 可避免 ONNX 创建 blob URL
+  env.backends.onnx.wasm.numThreads = 1;
 
   if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
     env.backends.onnx.wasm.wasmPaths = chrome.runtime.getURL('lib/wasm/');

@@ -96,10 +96,17 @@ const MindTraceStorage = (function () {
     let needsPersist = false;
 
     items = items.map((item) => {
-      const base = stripEmbeddingForStorage(item);
+      let base = stripEmbeddingForStorage(item);
+      base = MindTraceUtils.normalizeRecord(base);
       if (!Array.isArray(base.keywords)) {
         needsPersist = true;
         return ensureKeywords(base);
+      }
+      if (
+        !Array.isArray(item.images) ||
+        typeof item.imageOCRText !== 'string'
+      ) {
+        needsPersist = true;
       }
       return base;
     });
@@ -127,9 +134,47 @@ const MindTraceStorage = (function () {
    * @param {InspirationRecord} record
    * @returns {Promise<InspirationRecord>}
    */
-  async function save(record) {
+  /**
+   * 将思维证据图片写入 IndexedDB，并返回 imageId 列表
+   * @param {string} thoughtId
+   * @param {Blob[]} blobs
+   * @returns {Promise<string[]>}
+   */
+  async function persistEvidenceImages(thoughtId, blobs) {
+    if (
+      !thoughtId ||
+      !blobs ||
+      !blobs.length ||
+      typeof MindTraceImageStorage === 'undefined'
+    ) {
+      return [];
+    }
+
+    await MindTraceImageStorage.migrateIfNeeded();
+    const ids = [];
+    for (const blob of blobs) {
+      if (blob && blob.size) {
+        const imageId = await MindTraceImageStorage.saveImage(thoughtId, blob);
+        ids.push(imageId);
+      }
+    }
+    return ids;
+  }
+
+  async function save(record, options) {
+    const normalized = MindTraceUtils.normalizeRecord(record);
+    if (!MindTraceUtils.hasRequiredThought(normalized)) {
+      throw new Error('THOUGHT_CONTENT_REQUIRED');
+    }
+
+    const imageBlobs = (options && options.imageBlobs) || [];
+    const imageIds = await persistEvidenceImages(normalized.id, imageBlobs);
+    if (imageIds.length) {
+      normalized.images = [...(normalized.images || []), ...imageIds];
+    }
+
     const items = await getAllRaw();
-    const enriched = withKeywords(record);
+    const enriched = withKeywords(normalized);
     const forStorage = stripEmbeddingForStorage(enriched);
     items.unshift(forStorage);
     await chrome.storage.local.set({
@@ -157,13 +202,20 @@ const MindTraceStorage = (function () {
     }
 
     const existing = items[index];
-    const merged = {
+    const merged = MindTraceUtils.normalizeRecord({
       ...existing,
       ...partialData,
       id: existing.id,
       createdAt: existing.createdAt,
       updatedAt: Date.now(),
-    };
+    });
+
+    if (
+      partialData.note !== undefined &&
+      !MindTraceUtils.hasRequiredThought(merged)
+    ) {
+      throw new Error('THOUGHT_CONTENT_REQUIRED');
+    }
 
     if (!Array.isArray(merged.versionHistory)) {
       merged.versionHistory = [];
@@ -196,6 +248,9 @@ const MindTraceStorage = (function () {
 
     if (typeof MindTraceEmbeddingStorage !== 'undefined') {
       await MindTraceEmbeddingStorage.deleteEmbedding(id);
+    }
+    if (typeof MindTraceImageStorage !== 'undefined') {
+      await MindTraceImageStorage.deleteImagesForThought(id);
     }
     if (typeof MindTraceEmbeddingService !== 'undefined') {
       MindTraceEmbeddingService.invalidateRecord(id);
@@ -259,6 +314,7 @@ const MindTraceStorage = (function () {
     getAll,
     getAllRaw,
     save,
+    persistEvidenceImages,
     updateById,
     deleteById,
     getById,
@@ -283,4 +339,6 @@ const MindTraceStorage = (function () {
  * @property {Array} [versionHistory] - 版本历史（预留）
  * @property {string[]} [keywords] - 本地提取的关键词，用于思维关联降级
  * @property {number[]|null} [embedding] - 384 维语义向量（运行时从 IndexedDB 合并，不持久化到 chrome.storage）
+ * @property {string[]} [images] - 思维证据图片 ID 列表（Blob 存 IndexedDB）
+ * @property {string} [imageOCRText] - 图片 OCR 文本（预留，暂不参与 embedding）
  */

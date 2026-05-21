@@ -139,6 +139,30 @@ body.garden {
   color: var(--text-muted);
 }
 
+.btn-connect {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  background: var(--bg-card);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.btn-connect:hover {
+  color: var(--text-primary);
+  background: #fff;
+  border-color: #d5d1c9;
+}
+
+.btn-connect[hidden] {
+  display: none !important;
+}
+
 /* —— 主内容 —— */
 .garden-room {
   max-width: var(--page-max);
@@ -509,6 +533,33 @@ body.garden {
   box-shadow: 0 2px 4px rgba(31, 31, 31, 0.05), 0 8px 24px rgba(31, 31, 31, 0.06);
 }
 
+.timeline-item.is-cosmos-focus .timeline-dot {
+  background: var(--orange);
+  box-shadow: 0 0 0 4px var(--bg-page), 0 0 0 8px rgba(232, 93, 44, 0.25);
+}
+
+.timeline-item.is-cosmos-focus .timeline-card {
+  border-color: rgba(232, 93, 44, 0.45);
+  box-shadow:
+    0 2px 4px rgba(31, 31, 31, 0.05),
+    0 8px 28px rgba(232, 93, 44, 0.12);
+  animation: cosmosFocusPulse 1.2s ease 2;
+}
+
+@keyframes cosmosFocusPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 2px 4px rgba(31, 31, 31, 0.05),
+      0 8px 28px rgba(232, 93, 44, 0.12);
+  }
+  50% {
+    box-shadow:
+      0 2px 4px rgba(31, 31, 31, 0.05),
+      0 12px 36px rgba(232, 93, 44, 0.22);
+  }
+}
+
 .timeline-card-menu {
   position: absolute;
   top: 14px;
@@ -660,6 +711,93 @@ body.garden {
 .thought-more:hover {
   color: var(--text-primary);
   text-decoration: underline;
+}
+
+/* —— 思维证据（灵感现场预览） —— */
+.thought-evidence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(145deg, #2a2a2e 0%, #1f1f23 100%);
+}
+
+.thought-evidence-thumb {
+  display: block;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: zoom-in;
+  width: 88px;
+  height: 66px;
+  flex-shrink: 0;
+  background: #111;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.thought-evidence-thumb:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.thought-evidence-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.thought-evidence-more {
+  font-size: 12px;
+  color: #9a9aa3;
+  padding: 0 4px;
+}
+
+.evidence-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 15, 18, 0.88);
+  padding: 24px;
+}
+
+.evidence-lightbox[hidden] {
+  display: none !important;
+}
+
+.evidence-lightbox-img {
+  max-width: min(92vw, 1200px);
+  max-height: min(88vh, 900px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+  object-fit: contain;
+}
+
+.evidence-lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.evidence-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .thought-origin {
@@ -894,6 +1032,100 @@ body.garden {
   }
 }
 
+/* —— 联系开发者（引流） —— */
+.garden-connect {
+  padding: 48px 32px 56px;
+  background: var(--bg-page);
+  scroll-margin-top: 24px;
+}
+
+.garden-connect[hidden] {
+  display: none !important;
+}
+
+.garden-connect-inner {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 28px 32px;
+  text-align: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.garden-connect-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.garden-connect-sub {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.garden-connect-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.connect-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--text-secondary);
+  text-decoration: none;
+  background: var(--bg-pill);
+  border: 1px solid var(--border-input);
+  border-radius: 24px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.connect-chip:hover {
+  color: var(--text-primary);
+  background: #fff;
+  border-color: #d5d1c9;
+  transform: translateY(-1px);
+}
+
+.connect-chip--copy {
+  background: linear-gradient(135deg, #fef6eb 0%, #fff 100%);
+  border-color: #ecd9b8;
+  color: #8a6d3b;
+}
+
+.connect-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  z-index: 9999;
+  padding: 10px 18px;
+  font-size: 13px;
+  color: #fff;
+  background: rgba(31, 31, 31, 0.92);
+  border-radius: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.connect-toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 @media (max-width: 768px) {
   .garden-masthead,
   .garden-room {
@@ -915,6 +1147,15 @@ body.garden {
 
   .search-kbd {
     display: none;
+  }
+
+  .garden-connect {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .garden-connect-inner {
+    padding: 22px 18px;
   }
 }
 

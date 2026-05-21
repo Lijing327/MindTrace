@@ -7,14 +7,36 @@
     <link rel="stylesheet" href="graph/graph.css" />
   </head>
   <body class="cosmos-body">
-    <div id="root"></div>
+    <div id="root">
+      <div class="cosmos-app cosmos-app--static">
+        <header class="cosmos-header">
+          <div class="cosmos-header-inner">
+            <div>
+              <h1 class="cosmos-title">思维宇宙</h1>
+              <p class="cosmos-sub">认知图谱 · 语义神经元</p>
+            </div>
+            <nav class="cosmos-nav">
+              <a href="dashboard.html" class="cosmos-link">← 思维花园</a>
+            </nav>
+          </div>
+        </header>
+        <main class="cosmos-main">
+          <div class="cosmos-stage">
+            <div class="cosmos-overlay" aria-live="polite">
+              <div class="cosmos-spinner"></div>
+              <p class="cosmos-overlay-text">正在载入思维宇宙…</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <div id="graph-boot-error" class="graph-boot-error" hidden></div>
 
     <script src="utils.js"></script>
     <script src="services/keyword.service.js"></script>
     <script src="services/similarity.service.js"></script>
     <script src="services/vector.service.js"></script>
     <script src="services/embedding-storage.service.js"></script>
-    <script src="services/embedding.service.js"></script>
     <script src="services/relation.service.js"></script>
     <script src="services/cluster.service.js"></script>
     <script src="services/graph.service.js"></script>

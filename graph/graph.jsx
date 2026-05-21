@@ -3,10 +3,29 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ForceGraph2D } from 'react-force-graph';
+import ForceGraph2D from 'react-force-graph-2d';
 
 const BG = '#050816';
 const CLUSTER_HUES = [210, 255, 280, 195, 240, 265, 225];
+const GUIDE_DISMISS_KEY = 'mindtrace_cosmos_guide_dismissed';
+
+function formatNodeDate(timestamp) {
+  if (!timestamp) {
+    return '';
+  }
+  const d = new Date(timestamp);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function openThoughtInGarden(thoughtId) {
+  if (!thoughtId) {
+    return;
+  }
+  window.location.href = `dashboard.html?thought=${encodeURIComponent(thoughtId)}`;
+}
 
 function clusterHue(clusterId) {
   const m = /cluster-(\d+)/.exec(clusterId || '');
@@ -18,6 +37,14 @@ function nodeRadius(node) {
   return Math.sqrt(node.val || 4) * 2.8 + 3;
 }
 
+function isNodePlaced(node) {
+  return (
+    node &&
+    Number.isFinite(node.x) &&
+    Number.isFinite(node.y)
+  );
+}
+
 function CosmosGraph() {
   const containerRef = useRef(null);
   const fgRef = useRef(null);
@@ -26,6 +53,13 @@ function CosmosGraph() {
   const [status, setStatus] = useState('loading');
   const [statusDetail, setStatusDetail] = useState('正在载入思考…');
   const [highlightId, setHighlightId] = useState(null);
+  const [guideOpen, setGuideOpen] = useState(() => {
+    try {
+      return localStorage.getItem(GUIDE_DISMISS_KEY) !== '1';
+    } catch {
+      return true;
+    }
+  });
 
   const resize = useCallback(() => {
     if (!containerRef.current) {
@@ -63,39 +97,21 @@ function CosmosGraph() {
           return;
         }
 
-        const needsEmb = thoughts.filter((item) => {
-          const text =
-            typeof MindTraceEmbeddingService !== 'undefined'
-              ? MindTraceEmbeddingService.getTextForEmbedding(item)
-              : (item.note || item.selectedText || '').trim();
-          return text && (!item.embedding || !item.embedding.length);
-        });
-
-        if (
-          needsEmb.length &&
-          typeof MindTraceEmbeddingService !== 'undefined'
-        ) {
-          setStatusDetail(
-            `正在为 ${needsEmb.length} 条思考建立语义连结…`
-          );
-          try {
-            await MindTraceEmbeddingService.backfillMissing(needsEmb);
-          } catch (err) {
-            console.warn('[MindTrace Graph] embedding backfill:', err);
-          }
-          if (cancelled) {
-            return;
-          }
-          const refreshed = await MindTraceStorage.getAllRaw();
-          thoughts.splice(0, thoughts.length, ...refreshed);
-        }
-
         const raw = MindTraceGraphService.buildGraph(thoughts);
-        const nodes = raw.nodes.map((n) => ({
-          ...n,
-          val: n.weight,
-          name: n.label,
-        }));
+        const rect = containerRef.current?.getBoundingClientRect();
+        const cx = rect ? Math.max(160, rect.width / 2) : 400;
+        const cy = rect ? Math.max(160, rect.height / 2) : 300;
+        const spread = Math.min(180, 48 + raw.nodes.length * 10);
+        const nodes = raw.nodes.map((n, index, arr) => {
+          const angle = (index / Math.max(1, arr.length)) * Math.PI * 2;
+          return {
+            ...n,
+            val: n.weight,
+            name: n.label,
+            x: cx + Math.cos(angle) * spread,
+            y: cy + Math.sin(angle) * spread,
+          };
+        });
         const links = raw.links.map((l) => ({ ...l }));
 
         if (!cancelled) {
@@ -119,23 +135,47 @@ function CosmosGraph() {
   }, []);
 
   useEffect(() => {
-    if (status !== 'ready' || !fgRef.current) {
+    const fg = fgRef.current;
+    if (status !== 'ready' || !fg || typeof fg.d3Force !== 'function') {
       return;
     }
-    const charge = fgRef.current.d3Force('charge');
-    if (charge) {
-      charge.strength(-120);
+    try {
+      const charge = fg.d3Force('charge');
+      if (charge && typeof charge.strength === 'function') {
+        charge.strength(-120);
+      }
+      const link = fg.d3Force('link');
+      if (link && typeof link.distance === 'function') {
+        link.distance(90);
+      }
+      if (typeof fg.d3ReheatSimulation === 'function') {
+        fg.d3ReheatSimulation();
+      }
+      if (typeof fg.zoomToFit === 'function' && graphData.nodes.length > 0) {
+        window.setTimeout(() => {
+          try {
+            fg.zoomToFit(480, 48);
+          } catch (err) {
+            console.warn('[MindTrace Graph] zoomToFit failed:', err);
+          }
+        }, 600);
+      }
+    } catch (err) {
+      console.warn('[MindTrace Graph] force layout tweak failed:', err);
     }
-    const link = fgRef.current.d3Force('link');
-    if (link) {
-      link.distance(90);
-    }
-    fgRef.current.d3VelocityDecay(0.12);
   }, [status, graphData]);
 
   const paintNode = useCallback(
     (node, ctx, globalScale) => {
+      if (!isNodePlaced(node) || !Number.isFinite(globalScale) || globalScale <= 0) {
+        return;
+      }
+
       const r = nodeRadius(node) / globalScale;
+      if (!Number.isFinite(r) || r <= 0) {
+        return;
+      }
+
       const hue = clusterHue(node.cluster);
       const glow = ctx.createRadialGradient(
         node.x,
@@ -195,6 +235,22 @@ function CosmosGraph() {
   const nodeCount = graphData.nodes.length;
   const linkCount = graphData.links.length;
 
+  const selectedNode = useMemo(() => {
+    if (!highlightId) {
+      return null;
+    }
+    return graphData.nodes.find((n) => n.id === highlightId) || null;
+  }, [highlightId, graphData.nodes]);
+
+  const dismissGuide = useCallback(() => {
+    setGuideOpen(false);
+    try {
+      localStorage.setItem(GUIDE_DISMISS_KEY, '1');
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const hint = useMemo(() => {
     if (status === 'empty') {
       return '还没有可绘制的思考，去网页划词记录吧';
@@ -205,11 +261,60 @@ function CosmosGraph() {
     if (status === 'loading') {
       return statusDetail;
     }
-    return `${nodeCount} 个神经元 · ${linkCount} 条语义连结`;
+    return `${nodeCount} 个思考 · ${linkCount} 条关联 · 点击节点可在思维花园查看`;
   }, [status, statusDetail, nodeCount, linkCount]);
 
   return (
     <div className="cosmos-stage" ref={containerRef}>
+      {status === 'ready' && guideOpen && (
+        <aside className="cosmos-guide" aria-label="使用说明">
+          <p className="cosmos-guide-title">这是你的思考关系图</p>
+          <ul className="cosmos-guide-list">
+            <li>
+              <strong>圆点</strong> = 一条思考，<strong>连线</strong> = 意思相近或关键词相关
+            </li>
+            <li>拖动画布平移，滚轮缩放，悬停看摘要</li>
+            <li>
+              <strong>点击节点</strong> 选中，再点「在思维花园中查看」打开笔记
+            </li>
+          </ul>
+          <button
+            type="button"
+            className="cosmos-guide-dismiss"
+            onClick={dismissGuide}
+          >
+            知道了
+          </button>
+        </aside>
+      )}
+      {status === 'ready' && selectedNode && (
+        <aside className="cosmos-selection" aria-label="已选思考">
+          <p className="cosmos-selection-label">已选中</p>
+          <p className="cosmos-selection-title">
+            {selectedNode.label || selectedNode.name || '（未命名思考）'}
+          </p>
+          <p className="cosmos-selection-meta">
+            {selectedNode.cluster || '未分主题'} · 关联 {selectedNode.degree || 0}
+            {selectedNode.createdAt
+              ? ` · ${formatNodeDate(selectedNode.createdAt)}`
+              : ''}
+          </p>
+          <button
+            type="button"
+            className="cosmos-selection-btn"
+            onClick={() => openThoughtInGarden(selectedNode.id)}
+          >
+            在思维花园中查看 →
+          </button>
+          <button
+            type="button"
+            className="cosmos-selection-clear"
+            onClick={() => setHighlightId(null)}
+          >
+            取消选择
+          </button>
+        </aside>
+      )}
       {status === 'ready' && (
         <ForceGraph2D
           ref={fgRef}
@@ -224,6 +329,9 @@ function CosmosGraph() {
           }
           nodeCanvasObject={paintNode}
           nodePointerAreaPaint={(node, color, ctx) => {
+            if (!isNodePlaced(node)) {
+              return;
+            }
             const r = nodeRadius(node) * 1.4;
             ctx.beginPath();
             ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false);
@@ -235,6 +343,7 @@ function CosmosGraph() {
           linkDirectionalArrowLength={0}
           linkDirectionalParticles={0}
           cooldownTicks={120}
+          warmupTicks={80}
           d3AlphaDecay={0.012}
           d3VelocityDecay={0.12}
           onNodeClick={(node) => setHighlightId(node.id)}
@@ -263,7 +372,9 @@ function App() {
         <div className="cosmos-header-inner">
           <div>
             <h1 className="cosmos-title">思维宇宙</h1>
-            <p className="cosmos-sub">认知图谱 · 语义神经元</p>
+            <p className="cosmos-sub">
+              看见想法之间的关联 · 点击节点回到思维花园
+            </p>
           </div>
           <nav className="cosmos-nav">
             <a href="dashboard.html" className="cosmos-link">
@@ -281,5 +392,11 @@ function App() {
 
 const rootEl = document.getElementById('root');
 if (rootEl) {
-  createRoot(rootEl).render(<App />);
+  try {
+    createRoot(rootEl).render(<App />);
+  } catch (err) {
+    console.error('[MindTrace Graph] boot failed:', err);
+    rootEl.innerHTML =
+      '<div class="cosmos-overlay" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;color:#c8d4f0;background:#050816"><p>思维宇宙启动失败，请在 chrome://extensions 重新加载 MindTrace 后重试。</p></div>';
+  }
 }

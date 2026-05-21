@@ -1,5 +1,5 @@
 /**
- * 打包思维宇宙页：React + react-force-graph → lib/graph.bundle.js
+ * 打包思维宇宙页：React + react-force-graph-2d → lib/graph.bundle.js
  * 用法: npm run build:graph
  */
 import * as esbuild from 'esbuild';

@@ -7,6 +7,7 @@
 
   const PAGE_SIZE = 20;
   const COLLAPSE_THRESHOLD = 360;
+  const MAX_EVIDENCE_DISPLAY = 3;
   const KEYWORD_SAMPLE_SIZE = 50;
   const KEYWORD_TOP_N = 3;
   const MIN_RECORDS_FOR_THEMES = 2;
@@ -51,6 +52,13 @@
   const loadMoreBtn = document.getElementById('load-more-btn');
   const exportMdBtn = document.getElementById('export-md-btn');
   const embeddingStatusEl = document.getElementById('embedding-status');
+  const evidenceLightboxEl = document.getElementById('evidence-lightbox');
+  const evidenceLightboxImgEl = evidenceLightboxEl
+    ? evidenceLightboxEl.querySelector('.evidence-lightbox-img')
+    : null;
+
+  /** @type {Set<string>} */
+  const imageObjectUrlCache = new Set();
 
   let allItems = [];
   let embeddingBackfillRunning = false;
@@ -61,8 +69,103 @@
   let editingItemId = null;
   let skipNextStorageReload = false;
 
+  /**
+   * 从思维宇宙跳转：dashboard.html?thought=<id>
+   * @returns {string|null}
+   */
+  function getFocusThoughtIdFromUrl() {
+    const params = new URLSearchParams(location.search);
+    const fromQuery = params.get('thought');
+    if (fromQuery) {
+      return fromQuery;
+    }
+    const hash = (location.hash || '').replace(/^#/, '');
+    if (hash.startsWith('thought-')) {
+      return hash.slice('thought-'.length);
+    }
+    return hash || null;
+  }
+
+  /**
+   * 确保时间线已渲染到包含目标思考
+   * @param {string} thoughtId
+   * @returns {Promise<boolean>}
+   */
+  async function ensureThoughtRendered(thoughtId) {
+    if (!thoughtId || !findItemById(thoughtId)) {
+      return false;
+    }
+
+    if (searchInput.value.trim()) {
+      searchInput.value = '';
+      gardenRoomEl.classList.remove('is-searching');
+      await refreshTimeline('');
+    }
+
+    const idx = filteredItems.findIndex((x) => x.id === thoughtId);
+    if (idx === -1) {
+      return false;
+    }
+
+    let guard = 0;
+    while (renderedCount <= idx && renderedCount < filteredItems.length) {
+      await loadMoreBatch();
+      guard += 1;
+      if (guard > 200) {
+        break;
+      }
+    }
+
+    return renderedCount > idx;
+  }
+
+  /**
+   * 滚动并高亮时间线中的某条思考（来自思维宇宙）
+   * @param {string} thoughtId
+   */
+  async function focusThoughtInTimeline(thoughtId) {
+    const ok = await ensureThoughtRendered(thoughtId);
+    if (!ok) {
+      return;
+    }
+
+    const safeId =
+      typeof CSS !== 'undefined' && CSS.escape
+        ? CSS.escape(thoughtId)
+        : thoughtId.replace(/"/g, '\\"');
+    const piece = timelineEl.querySelector(
+      `.timeline-item[data-id="${safeId}"]`
+    );
+    if (!piece) {
+      return;
+    }
+
+    document.querySelectorAll('.timeline-item.is-cosmos-focus').forEach((el) => {
+      el.classList.remove('is-cosmos-focus');
+    });
+    piece.classList.add('is-cosmos-focus');
+
+    const timelineSection = document.querySelector('.timeline-section');
+    if (timelineSection) {
+      timelineSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    window.setTimeout(() => {
+      piece.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 120);
+
+    window.setTimeout(() => {
+      piece.classList.remove('is-cosmos-focus');
+    }, 4500);
+  }
+
   async function init() {
     await reloadAllData();
+
+    const focusId = getFocusThoughtIdFromUrl();
+    if (focusId) {
+      await focusThoughtInTimeline(focusId);
+    }
 
     searchInput.addEventListener(
       'input',
@@ -92,7 +195,98 @@
     });
 
     setupInfiniteScroll();
+    setupEvidenceLightbox();
+    setupCreatorConnect();
     setupEmbeddingStatus();
+  }
+
+  function setupCreatorConnect() {
+    const footerInner = document.getElementById('garden-connect-inner');
+    const footer = document.getElementById('garden-connect');
+    const mastheadLink = document.getElementById('masthead-connect-link');
+
+    if (
+      typeof MindTraceCreator === 'undefined' ||
+      !MindTraceCreator.enabled ||
+      !footerInner
+    ) {
+      if (footer) {
+        footer.hidden = true;
+      }
+      return;
+    }
+
+    const activeLinks = MindTraceCreator.getActiveLinks();
+    if (!activeLinks.length) {
+      if (footer) {
+        footer.hidden = true;
+      }
+      return;
+    }
+
+    if (mastheadLink) {
+      mastheadLink.hidden = false;
+    }
+
+    const headline = MindTraceUtils.escapeHtml(MindTraceCreator.headline || '');
+    const subline = MindTraceUtils.escapeHtml(MindTraceCreator.subline || '');
+
+    const linksHtml = activeLinks
+      .map((link) => {
+        const label = MindTraceUtils.escapeHtml(link.label || '联系');
+        if (link.type === 'copy') {
+          const value = MindTraceUtils.escapeHtml(link.value || '');
+          const hint = MindTraceUtils.escapeHtml(link.hint || '已复制');
+          return `<button type="button" class="connect-chip connect-chip--copy" data-copy="${value}" data-copy-hint="${hint}">${label}</button>`;
+        }
+        let href = (link.href || '').trim();
+        if (link.type === 'mailto' && href && !/^mailto:/i.test(href)) {
+          href = `mailto:${href.replace(/^mailto:/i, '')}`;
+        }
+        const hrefEsc = MindTraceUtils.escapeHtml(href || '#');
+        const external =
+          link.type === 'url'
+            ? ' target="_blank" rel="noopener noreferrer"'
+            : '';
+        return `<a class="connect-chip" href="${hrefEsc}"${external}>${label}</a>`;
+      })
+      .join('');
+
+    footerInner.innerHTML = `
+      <p class="garden-connect-title">${headline}</p>
+      ${subline ? `<p class="garden-connect-sub">${subline}</p>` : ''}
+      <div class="garden-connect-links">${linksHtml}</div>
+    `;
+
+    footerInner.querySelectorAll('.connect-chip--copy').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const text = btn.getAttribute('data-copy') || '';
+        const hint = btn.getAttribute('data-copy-hint') || '已复制';
+        try {
+          await navigator.clipboard.writeText(text);
+          showConnectToast(hint);
+        } catch (_err) {
+          showConnectToast(text);
+        }
+      });
+    });
+  }
+
+  function showConnectToast(message) {
+    let toast = document.getElementById('connect-toast');
+    if (!toast) {
+      toast = document.createElement('p');
+      toast.id = 'connect-toast';
+      toast.className = 'connect-toast';
+      toast.setAttribute('role', 'status');
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('is-visible');
+    clearTimeout(showConnectToast._timer);
+    showConnectToast._timer = setTimeout(() => {
+      toast.classList.remove('is-visible');
+    }, 2200);
   }
 
   function setupEmbeddingStatus() {
@@ -426,6 +620,7 @@
 
   async function refreshTimeline(query) {
     cancelAllEdits();
+    revokeCachedImageUrls();
     try {
       filteredItems = await MindTraceStorage.search(query || '');
       renderedCount = 0;
@@ -640,6 +835,138 @@
     `;
   }
 
+  function revokeCachedImageUrls() {
+    imageObjectUrlCache.forEach((url) => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch (_e) {
+        /* ignore */
+      }
+    });
+    imageObjectUrlCache.clear();
+  }
+
+  function buildEvidenceShellHtml(item) {
+    const ids = Array.isArray(item.images) ? item.images.filter(Boolean) : [];
+    if (!ids.length) {
+      return '';
+    }
+    const extra =
+      ids.length > MAX_EVIDENCE_DISPLAY
+        ? `<span class="thought-evidence-more">+${ids.length - MAX_EVIDENCE_DISPLAY}</span>`
+        : '';
+    return `<div class="thought-evidence" data-thought-id="${MindTraceUtils.escapeHtml(item.id)}" aria-label="思维证据">${extra}</div>`;
+  }
+
+  /**
+   * @param {HTMLElement} container
+   * @param {InspirationRecord} item
+   */
+  async function hydrateEvidenceThumbs(container, item) {
+    if (!container || typeof MindTraceImageStorage === 'undefined') {
+      return;
+    }
+
+    const ids = (item.images || []).slice(0, MAX_EVIDENCE_DISPLAY);
+    if (!ids.length) {
+      return;
+    }
+
+    await MindTraceImageStorage.migrateIfNeeded();
+    const urlMap = await MindTraceImageStorage.getObjectUrlsBatch(ids);
+
+    const moreEl = container.querySelector('.thought-evidence-more');
+    container.innerHTML = '';
+    if (moreEl) {
+      container.appendChild(moreEl);
+    }
+
+    ids.forEach((imageId) => {
+      const url = urlMap[imageId];
+      if (!url) {
+        return;
+      }
+      imageObjectUrlCache.add(url);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'thought-evidence-thumb';
+      btn.dataset.fullUrl = url;
+      btn.setAttribute('aria-label', '放大查看思维证据');
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = '思维证据';
+      img.loading = 'lazy';
+      btn.appendChild(img);
+      container.insertBefore(btn, moreEl || null);
+    });
+
+    bindEvidenceThumbClicks(container);
+  }
+
+  function bindEvidenceThumbClicks(container) {
+    container.querySelectorAll('.thought-evidence-thumb').forEach((btn) => {
+      if (btn.dataset.bound === '1') {
+        return;
+      }
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', () => {
+        const url = btn.dataset.fullUrl;
+        if (url) {
+          openEvidenceLightbox(url);
+        }
+      });
+    });
+  }
+
+  function openEvidenceLightbox(url) {
+    if (!evidenceLightboxEl || !evidenceLightboxImgEl) {
+      window.open(url, '_blank');
+      return;
+    }
+    evidenceLightboxImgEl.src = url;
+    evidenceLightboxEl.hidden = false;
+    evidenceLightboxEl.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeEvidenceLightbox() {
+    if (!evidenceLightboxEl || !evidenceLightboxImgEl) {
+      return;
+    }
+    evidenceLightboxEl.hidden = true;
+    evidenceLightboxEl.setAttribute('aria-hidden', 'true');
+    evidenceLightboxImgEl.removeAttribute('src');
+  }
+
+  function setupEvidenceLightbox() {
+    if (!evidenceLightboxEl) {
+      return;
+    }
+    const closeBtn = evidenceLightboxEl.querySelector('.evidence-lightbox-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeEvidenceLightbox);
+    }
+    evidenceLightboxEl.addEventListener('click', (e) => {
+      if (e.target === evidenceLightboxEl) {
+        closeEvidenceLightbox();
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && evidenceLightboxEl && !evidenceLightboxEl.hidden) {
+        closeEvidenceLightbox();
+      }
+    });
+  }
+
+  function queueEvidenceHydrate(piece, item) {
+    const shell = piece.querySelector('.thought-evidence');
+    if (!shell) {
+      return;
+    }
+    hydrateEvidenceThumbs(shell, item).catch((err) => {
+      console.warn('[MindTrace] 思维证据加载失败:', err);
+    });
+  }
+
   function buildChipsHtml(pageUrl, pageTitle) {
     if (!pageUrl || pageUrl === '#') {
       return '';
@@ -682,6 +1009,7 @@
     const pageUrlEsc = MindTraceUtils.escapeHtml(pageUrl);
     const idEscaped = MindTraceUtils.escapeHtml(item.id);
     const chipsHtml = buildChipsHtml(pageUrl, pageTitle);
+    const evidenceHtml = buildEvidenceShellHtml(item);
     const relatedHtml = buildRelatedThoughtsHtml(item);
 
     piece.innerHTML = `
@@ -701,6 +1029,7 @@
         </div>
         ${titleHtml}
         ${bodyHtml}
+        ${evidenceHtml}
         ${chipsHtml}
         <p class="thought-origin">来源：<a href="${pageUrlEsc}" target="_blank" rel="noopener noreferrer">${pageTitleEsc}</a></p>
         ${relatedHtml}
@@ -709,6 +1038,7 @@
 
     bindCardMenu(piece, item);
     bindExpandButtons(piece);
+    queueEvidenceHydrate(piece, item);
 
     return piece;
   }
@@ -756,7 +1086,7 @@
 
   function getReadContentNodes(card) {
     return card.querySelectorAll(
-      '.thought-title, .thought-body, .thought-more, .thought-chips, .thought-origin, .thought-related'
+      '.thought-title, .thought-body, .thought-more, .thought-evidence, .thought-chips, .thought-origin, .thought-related'
     );
   }
 
@@ -771,8 +1101,9 @@
     const pageTitleEsc = MindTraceUtils.escapeHtml(item.pageTitle || '未知页面');
     const pageUrlEsc = MindTraceUtils.escapeHtml(item.pageUrl || '#');
     const originHtml = `<p class="thought-origin">来源：<a href="${pageUrlEsc}" target="_blank" rel="noopener noreferrer">${pageTitleEsc}</a></p>`;
+    const evidenceHtml = buildEvidenceShellHtml(item);
     const relatedHtml = buildRelatedThoughtsHtml(item);
-    return titleHtml + bodyHtml + chipsHtml + originHtml + relatedHtml;
+    return titleHtml + bodyHtml + evidenceHtml + chipsHtml + originHtml + relatedHtml;
   }
 
   function refreshCardReadView(piece, item) {
@@ -802,6 +1133,7 @@
     }
 
     bindExpandButtons(piece);
+    queueEvidenceHydrate(piece, item);
   }
 
   function enterEditMode(piece, item) {

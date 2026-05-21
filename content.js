@@ -1,6 +1,6 @@
 /**
  * MindTrace — Content Script
- * 负责：划词检测、浮动按钮、记录弹窗、保存提示
+ * 划词记录、思维证据（粘贴/拖拽/右键图片/截图）、保存提示
  */
 
 (function () {
@@ -11,27 +11,22 @@
   }
   window.__MINDTRACE_INJECTED__ = true;
 
-  /** 根容器 ID，避免与页面冲突 */
   const ROOT_ID = 'mindtrace-root';
-
-  /** 最小选中文本长度（字符） */
   const MIN_SELECTION_LENGTH = 2;
-
-  /** Toast 显示时长（毫秒） */
   const TOAST_DURATION = 2500;
+  const MAX_EVIDENCE_IMAGES = 5;
 
-  /** 当前选中的文本 */
   let currentSelectedText = '';
+  /** @type {{ blob: Blob, previewUrl: string }[]} */
+  let pendingEvidence = [];
+  /** @type {'selection'|'image'} */
+  let panelMode = 'selection';
 
-  /** DOM 引用 */
   let rootEl = null;
   let triggerBtn = null;
   let panelEl = null;
   let toastEl = null;
 
-  /**
-   * 初始化 UI 容器
-   */
   function init() {
     if (document.getElementById(ROOT_ID)) {
       return;
@@ -64,31 +59,54 @@
     document.documentElement.appendChild(rootEl);
 
     bindDocumentEvents();
+
+    chrome.runtime.onMessage.addListener((message) => {
+      if (!message || !message.type) {
+        return;
+      }
+      if (message.type === 'mindtrace-open-image-save') {
+        openImageSavePanel(message.srcUrl, {
+          pageTitle: message.pageTitle,
+          pageUrl: message.pageUrl,
+        });
+      }
+    });
   }
 
-  /**
-   * 构建记录弹窗 DOM
-   * @returns {HTMLElement}
-   */
   function buildPanel() {
     const panel = document.createElement('div');
     panel.className = 'mt-panel';
     panel.innerHTML = `
       <div class="mt-panel-header">
-        <span class="mt-panel-title">记录灵感</span>
+        <div class="mt-panel-heading">
+          <span class="mt-panel-title" data-ref="panel-title">记录灵感</span>
+          <p class="mt-panel-subtitle" data-ref="panel-subtitle" hidden></p>
+        </div>
         <button type="button" class="mt-panel-close" aria-label="关闭">×</button>
       </div>
       <div class="mt-panel-body">
-        <label class="mt-label">原文</label>
-        <blockquote class="mt-quote" data-ref="quote"></blockquote>
-        <label class="mt-label" for="mt-note-input">我的想法</label>
+        <div class="mt-quote-wrap" data-ref="quote-wrap">
+          <label class="mt-label">原文</label>
+          <blockquote class="mt-quote" data-ref="quote"></blockquote>
+        </div>
+        <label class="mt-label" for="mt-note-input" data-ref="note-label">随想</label>
         <textarea
           id="mt-note-input"
           class="mt-note-input"
           rows="4"
-          placeholder="这一刻的想法…"
+          placeholder="想到了什么……"
           data-ref="note"
         ></textarea>
+        <div class="mt-evidence" data-ref="evidence-section">
+          <label class="mt-label">灵感现场</label>
+          <p class="mt-evidence-hint">粘贴或拖入都可以，帮以后想起当时的情境</p>
+          <div class="mt-evidence-preview" data-ref="evidence-preview" hidden></div>
+          <div class="mt-evidence-actions">
+            <button type="button" class="mt-btn-link" data-action="capture-moment" title="截取当前可见网页">
+              截取当前画面
+            </button>
+          </div>
+        </div>
       </div>
       <div class="mt-panel-footer">
         <button type="button" class="mt-btn mt-btn-secondary" data-action="cancel">取消</button>
@@ -99,13 +117,19 @@
     panel.querySelector('.mt-panel-close').addEventListener('click', hidePanel);
     panel.querySelector('[data-action="cancel"]').addEventListener('click', hidePanel);
     panel.querySelector('[data-action="save"]').addEventListener('click', onSaveClick);
+    panel
+      .querySelector('[data-action="capture-moment"]')
+      .addEventListener('click', onCaptureMomentClick);
+
+    const noteInput = panel.querySelector('[data-ref="note"]');
+    noteInput.addEventListener('paste', onNotePaste);
+    panel.addEventListener('dragover', onPanelDragOver);
+    panel.addEventListener('dragleave', onPanelDragLeave);
+    panel.addEventListener('drop', onPanelDrop);
 
     return panel;
   }
 
-  /**
-   * 绑定文档级事件
-   */
   function bindDocumentEvents() {
     document.addEventListener('mouseup', onMouseUp, true);
     document.addEventListener('mousedown', onMouseDown, true);
@@ -114,9 +138,6 @@
     window.addEventListener('resize', hideTriggerButton, { passive: true });
   }
 
-  /**
-   * 鼠标抬起：检测是否有有效选区
-   */
   function onMouseUp(event) {
     if (isInsideMindTraceUI(event.target)) {
       return;
@@ -141,9 +162,6 @@
     });
   }
 
-  /**
-   * 鼠标按下：点击 UI 外部时关闭面板
-   */
   function onMouseDown(event) {
     if (isInsideMindTraceUI(event.target)) {
       return;
@@ -154,9 +172,6 @@
     hidePanel();
   }
 
-  /**
-   * ESC 关闭面板与按钮
-   */
   function onKeyDown(event) {
     if (event.key === 'Escape') {
       hidePanel();
@@ -164,9 +179,6 @@
     }
   }
 
-  /**
-   * 判断选区是否在可编辑区域内
-   */
   function isSelectionInEditable(selection) {
     if (!selection || selection.rangeCount === 0) {
       return false;
@@ -189,9 +201,6 @@
     return false;
   }
 
-  /**
-   * 事件是否发生在 MindTrace UI 内
-   */
   function isInsideMindTraceUI(target) {
     const host = document.getElementById(ROOT_ID);
     if (!host || !target) {
@@ -200,9 +209,6 @@
     return host.contains(/** @type {Node} */ (target));
   }
 
-  /**
-   * 在选区附近显示「记录灵感」按钮
-   */
   function showTriggerButton(selection) {
     if (!triggerBtn || !selection || selection.rangeCount === 0) {
       return;
@@ -245,13 +251,71 @@
   function onTriggerClick(event) {
     event.stopPropagation();
     hideTriggerButton();
-    openPanel();
+    openSelectionPanel();
   }
 
-  function openPanel() {
+  function clearPendingEvidence() {
+    pendingEvidence.forEach((item) => {
+      if (item.previewUrl) {
+        URL.revokeObjectURL(item.previewUrl);
+      }
+    });
+    pendingEvidence = [];
+    renderEvidencePreview();
+  }
+
+  function setPanelMode(mode) {
+    panelMode = mode;
+    const titleEl = panelEl.querySelector('[data-ref="panel-title"]');
+    const subtitleEl = panelEl.querySelector('[data-ref="panel-subtitle"]');
+    const quoteWrap = panelEl.querySelector('[data-ref="quote-wrap"]');
+    const noteLabel = panelEl.querySelector('[data-ref="note-label"]');
+    const noteInput = panelEl.querySelector('[data-ref="note"]');
+
+    if (mode === 'image') {
+      if (titleEl) {
+        titleEl.textContent = '留住这一瞬';
+      }
+      if (subtitleEl) {
+        subtitleEl.textContent = '画面已经有了，写几句留给以后的自己';
+        subtitleEl.hidden = false;
+      }
+      if (quoteWrap) {
+        quoteWrap.hidden = true;
+      }
+      if (noteLabel) {
+        noteLabel.textContent = '随想';
+      }
+      if (noteInput) {
+        noteInput.placeholder = '它让你想到什么……';
+      }
+    } else {
+      if (titleEl) {
+        titleEl.textContent = '记录灵感';
+      }
+      if (subtitleEl) {
+        subtitleEl.textContent = '';
+        subtitleEl.hidden = true;
+      }
+      if (quoteWrap) {
+        quoteWrap.hidden = false;
+      }
+      if (noteLabel) {
+        noteLabel.textContent = '随想';
+      }
+      if (noteInput) {
+        noteInput.placeholder = '想到了什么……';
+      }
+    }
+  }
+
+  function openSelectionPanel() {
     if (!panelEl) {
       return;
     }
+
+    setPanelMode('selection');
+    clearPendingEvidence();
 
     const quoteEl = panelEl.querySelector('[data-ref="quote"]');
     const noteInput = panelEl.querySelector('[data-ref="note"]');
@@ -263,10 +327,55 @@
       noteInput.value = '';
     }
 
+    showPanel();
+  }
+
+  /**
+   * @param {string} srcUrl
+   * @param {{ pageTitle?: string, pageUrl?: string }} meta
+   */
+  async function openImageSavePanel(srcUrl, meta) {
+    if (!panelEl) {
+      return;
+    }
+
+    hideTriggerButton();
+    setPanelMode('image');
+    clearPendingEvidence();
+    currentSelectedText = '';
+
+    panelEl.dataset.pageTitle = meta.pageTitle || document.title;
+    panelEl.dataset.pageUrl = meta.pageUrl || window.location.href;
+
+    const noteInput = panelEl.querySelector('[data-ref="note"]');
+    if (noteInput) {
+      noteInput.value = '';
+    }
+
+    showPanel();
+
+    try {
+      const blob = await imageUrlToBlob(srcUrl);
+      if (blob) {
+        addEvidenceBlob(blob);
+      } else {
+        showToast('无法读取该图片，请尝试另存为后粘贴');
+      }
+    } catch (err) {
+      console.warn('[MindTrace] image fetch failed:', err);
+      showToast('无法读取该图片');
+    }
+
+    if (noteInput) {
+      noteInput.focus();
+    }
+  }
+
+  function showPanel() {
     panelEl.style.top = `${Math.max(80, window.innerHeight * 0.12)}px`;
     panelEl.hidden = false;
-
     requestAnimationFrame(() => {
+      const noteInput = panelEl.querySelector('[data-ref="note"]');
       if (noteInput) {
         noteInput.focus();
       }
@@ -277,17 +386,245 @@
     if (panelEl) {
       panelEl.hidden = true;
     }
+    clearPendingEvidence();
+  }
+
+  /**
+   * @param {Blob} blob
+   */
+  function addEvidenceBlob(blob) {
+    if (!blob || !blob.type.startsWith('image/')) {
+      return;
+    }
+    if (pendingEvidence.length >= MAX_EVIDENCE_IMAGES) {
+      showToast(`最多保存 ${MAX_EVIDENCE_IMAGES} 张灵感现场`);
+      return;
+    }
+    const previewUrl = URL.createObjectURL(blob);
+    pendingEvidence.push({ blob, previewUrl });
+    renderEvidencePreview();
+  }
+
+  function renderEvidencePreview() {
+    const wrap = panelEl.querySelector('[data-ref="evidence-preview"]');
+    if (!wrap) {
+      return;
+    }
+
+    if (!pendingEvidence.length) {
+      wrap.hidden = true;
+      wrap.innerHTML = '';
+      return;
+    }
+
+    wrap.hidden = false;
+    wrap.innerHTML = pendingEvidence
+      .map(
+        (item, index) =>
+          `<div class="mt-evidence-thumb-wrap">
+            <img class="mt-evidence-thumb" src="${item.previewUrl}" alt="灵感现场预览" />
+            <button type="button" class="mt-evidence-remove" data-index="${index}" aria-label="移除">×</button>
+          </div>`
+      )
+      .join('');
+
+    wrap.querySelectorAll('.mt-evidence-remove').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = Number(btn.getAttribute('data-index'));
+        const removed = pendingEvidence.splice(idx, 1)[0];
+        if (removed && removed.previewUrl) {
+          URL.revokeObjectURL(removed.previewUrl);
+        }
+        renderEvidencePreview();
+      });
+    });
+  }
+
+  function onNotePaste(event) {
+    const items = event.clipboardData && event.clipboardData.items;
+    if (!items) {
+      return;
+    }
+
+    let hasImage = false;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        hasImage = true;
+        const file = item.getAsFile();
+        if (file) {
+          addEvidenceBlob(file);
+        }
+      }
+    }
+
+    if (hasImage) {
+      event.preventDefault();
+    }
+  }
+
+  function onPanelDragOver(event) {
+    if (!hasFileDrag(event)) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    panelEl.classList.add('mt-panel-dragover');
+  }
+
+  function onPanelDragLeave(event) {
+    event.stopPropagation();
+    panelEl.classList.remove('mt-panel-dragover');
+  }
+
+  function onPanelDrop(event) {
+    if (!hasFileDrag(event)) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    panelEl.classList.remove('mt-panel-dragover');
+
+    const files = event.dataTransfer && event.dataTransfer.files;
+    if (!files) {
+      return;
+    }
+
+    for (const file of files) {
+      if (file.type.startsWith('image/')) {
+        addEvidenceBlob(file);
+      }
+    }
+  }
+
+  function hasFileDrag(event) {
+    const types = event.dataTransfer && event.dataTransfer.types;
+    return types && Array.from(types).includes('Files');
+  }
+
+  async function onCaptureMomentClick() {
+    const saveBtn = panelEl.querySelector('[data-action="capture-moment"]');
+    if (saveBtn) {
+      saveBtn.disabled = true;
+    }
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'mindtrace-capture-visible-tab',
+      });
+
+      if (!response || !response.ok || !response.dataUrl) {
+        showToast('截图失败，请确认已激活该标签页');
+        return;
+      }
+
+      const blob = await dataUrlToBlob(response.dataUrl);
+      addEvidenceBlob(blob);
+      showToast('已捕获当前页面画面');
+    } catch (err) {
+      console.warn('[MindTrace] capture moment failed:', err);
+      showToast('截图失败');
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+      }
+    }
+  }
+
+  /**
+   * @param {string} dataUrl
+   * @returns {Promise<Blob>}
+   */
+  function dataUrlToBlob(dataUrl) {
+    return fetch(dataUrl).then((r) => r.blob());
+  }
+
+  /**
+   * @param {string} url
+   * @returns {Promise<Blob|null>}
+   */
+  async function imageUrlToBlob(url) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        return await res.blob();
+      }
+    } catch (_e) {
+      /* cross-origin: try canvas */
+    }
+
+    const img = await loadImageElement(url);
+    if (!img) {
+      return null;
+    }
+
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        return null;
+      }
+      ctx.drawImage(img, 0, 0);
+      return await new Promise((resolve) => {
+        canvas.toBlob((blob) => resolve(blob), 'image/png');
+      });
+    } catch (err) {
+      console.warn('[MindTrace] canvas export failed:', err);
+      return null;
+    }
+  }
+
+  /**
+   * @param {string} url
+   * @returns {Promise<HTMLImageElement|null>}
+   */
+  function loadImageElement(url) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => {
+        const fallback = Array.from(document.images).find(
+          (el) => el.src === url || el.currentSrc === url
+        );
+        if (fallback && fallback.complete) {
+          resolve(fallback);
+        } else {
+          resolve(null);
+        }
+      };
+      img.src = url;
+    });
   }
 
   async function onSaveClick() {
     const noteInput = panelEl.querySelector('[data-ref="note"]');
     const note = noteInput ? noteInput.value.trim() : '';
 
+    if (!note) {
+      showToast('写几个字再保存吧，以后才好找回来');
+      if (noteInput) {
+        noteInput.focus();
+      }
+      return;
+    }
+
+    const pageTitle =
+      panelMode === 'image' && panelEl.dataset.pageTitle
+        ? panelEl.dataset.pageTitle
+        : document.title;
+    const pageUrl =
+      panelMode === 'image' && panelEl.dataset.pageUrl
+        ? panelEl.dataset.pageUrl
+        : window.location.href;
+
     const record = MindTraceUtils.buildRecord({
-      selectedText: currentSelectedText,
-      note: note,
-      pageTitle: document.title,
-      pageUrl: window.location.href,
+      selectedText: panelMode === 'selection' ? currentSelectedText : '',
+      note,
+      pageTitle,
+      pageUrl,
     });
 
     const saveBtn = panelEl.querySelector('[data-action="save"]');
@@ -296,14 +633,20 @@
       saveBtn.textContent = '保存中…';
     }
 
+    const blobs = pendingEvidence.map((item) => item.blob);
+
     try {
-      await MindTraceStorage.save(record);
+      await MindTraceStorage.save(record, { imageBlobs: blobs });
       hidePanel();
       showToast('✓ 已保存到 MindTrace');
       window.getSelection()?.removeAllRanges();
     } catch (err) {
       console.error('[MindTrace] 保存失败:', err);
-      showToast('保存失败，请重试');
+      if (err && err.message === 'THOUGHT_CONTENT_REQUIRED') {
+        showToast('写几个字再保存吧');
+      } else {
+        showToast('保存失败，请重试');
+      }
     } finally {
       if (saveBtn) {
         saveBtn.disabled = false;

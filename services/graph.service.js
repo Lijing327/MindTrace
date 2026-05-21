@@ -35,9 +35,9 @@ const MindTraceGraphService = (function () {
   /**
    * 两两语义相似度建边（需 embedding）
    * @param {InspirationRecord[]} thoughts
-   * @returns {Array<{ source: string, target: string, similarity: number, createdAt: number }>}
+   * @returns {Array<{ source: string, target: string, similarity: number, createdAt: number, semantic?: boolean }>}
    */
-  function buildLinks(thoughts) {
+  function buildSemanticLinks(thoughts) {
     const withEmb = thoughts.filter(
       (t) => Array.isArray(t.embedding) && t.embedding.length > 0
     );
@@ -59,12 +59,62 @@ const MindTraceGraphService = (function () {
             similarity,
             /** 边形成时间近似为较晚那条思考的创建时刻（Phase 4 演化轴） */
             createdAt: Math.max(a.createdAt, b.createdAt),
+            semantic: true,
           });
         }
       }
     }
 
     return links;
+  }
+
+  /**
+   * 关键词重叠建边（语义模型不可用时的降级）
+   * @param {InspirationRecord[]} thoughts
+   * @returns {Array<{ source: string, target: string, similarity: number, createdAt: number, semantic: boolean }>}
+   */
+  function buildKeywordLinks(thoughts) {
+    if (
+      typeof MindTraceSimilarityService === 'undefined' ||
+      typeof MindTraceSimilarityService.calculateSimilarity !== 'function'
+    ) {
+      return [];
+    }
+
+    const links = [];
+
+    for (let i = 0; i < thoughts.length; i++) {
+      for (let j = i + 1; j < thoughts.length; j++) {
+        const a = thoughts[i];
+        const b = thoughts[j];
+        const score = MindTraceSimilarityService.calculateSimilarity(a, b);
+        if (score < 1) {
+          continue;
+        }
+
+        links.push({
+          source: a.id,
+          target: b.id,
+          similarity: Math.min(1, SIMILARITY_THRESHOLD + score * 0.04),
+          createdAt: Math.max(a.createdAt, b.createdAt),
+          semantic: false,
+        });
+      }
+    }
+
+    return links;
+  }
+
+  /**
+   * @param {InspirationRecord[]} thoughts
+   * @returns {Array<{ source: string, target: string, similarity: number, createdAt: number, semantic?: boolean }>}
+   */
+  function buildLinks(thoughts) {
+    const semanticLinks = buildSemanticLinks(thoughts);
+    if (semanticLinks.length) {
+      return semanticLinks;
+    }
+    return buildKeywordLinks(thoughts);
   }
 
   /**

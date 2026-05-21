@@ -51,7 +51,7 @@ MindTrace/
 
 ## 构建（语义模型 + 认知图谱）
 
-首次克隆或修改 Worker / 图谱源码后执行：
+首次克隆或修改 Worker / 图谱源码后执行： 
 
 ```bash
 npm install

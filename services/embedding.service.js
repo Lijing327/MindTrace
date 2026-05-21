@@ -109,6 +109,9 @@ const MindTraceEmbeddingService = (function () {
     pendingRequests.forEach(({ reject }) => reject(error));
     pendingRequests.clear();
     modelLoading = false;
+    if (readyPromise && readyPromise._reject) {
+      readyPromise._reject(error);
+    }
     readyPromise = null;
   }
 

@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "MindTrace",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "浏览网页时快速记录灵感，并自动保留思考上下文。",
-  "permissions": ["storage", "activeTab", "scripting"],
+  "permissions": ["storage", "activeTab", "scripting", "contextMenus"],
   "optional_host_permissions": [
     "https://huggingface.co/*",
     "https://cdn.jsdelivr.net/*"

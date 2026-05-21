@@ -32,7 +32,7 @@ const ROOT_FILES = [
 ];
 
 /** 整目录复制（排除 .map） */
-const INCLUDE_DIRS = ['icons', 'lib', 'services'];
+const INCLUDE_DIRS = ['icons', 'lib', 'services', 'config'];
 
 /** 仅包含样式，不含 graph.jsx 源码 */
 const GRAPH_FILES = ['graph/graph.css'];
