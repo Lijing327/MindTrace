@@ -4,167 +4,222 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MindTrace — 思维花园</title>
-    <link rel="stylesheet" href="dashboard.css" />
+    <link rel="stylesheet" href="dashboard.css?v=3.1.0" />
   </head>
-  <body class="garden">
-    <div class="garden-shell garden-shell--with-rail">
-      <aside class="garden-universe-rail" id="garden-rail" aria-label="认知花园">
-        <div class="garden-rail-head">
-          <h2 class="garden-rail-title">认知宇宙</h2>
-          <p class="garden-rail-sub">每片花园，独立生长的思维空间</p>
-        </div>
-        <div id="garden-list" class="garden-list" role="listbox" aria-label="花园列表"></div>
-        <button type="button" id="garden-create-btn" class="garden-create-btn">
-          <span class="garden-create-icon" aria-hidden="true">+</span>
-          开辟新花园
-        </button>
-      </aside>
-
-      <div class="garden-main-column">
-      <header class="garden-masthead">
-        <div class="garden-masthead-inner">
-          <div class="masthead-words">
-            <h1 class="masthead-title" id="masthead-garden-name">思维花园</h1>
-            <p class="masthead-sub" id="masthead-garden-desc">一片慢慢生长的个人思考空间</p>
+  <body class="app">
+    <div class="app-shell">
+      <aside class="sidebar" id="garden-rail" aria-label="主导航">
+        <div class="sidebar-brand">
+          <span class="sidebar-brand-mark" aria-hidden="true">🍂</span>
+          <div class="sidebar-brand-text">
+            <strong class="sidebar-brand-name">MindTrace</strong>
+            <span class="sidebar-brand-tag">你的思维花园</span>
           </div>
-          <div class="masthead-actions">
-          <a
-            href="#garden-connect"
-            class="btn-connect"
-            id="masthead-connect-link"
-            hidden
-          >联系作者</a>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="主菜单">
+          <a href="#dashboard-home" class="nav-item is-active" data-nav="home">
+            <span class="nav-icon" aria-hidden="true">🌼</span>
+            思维花园
+          </a>
+          <a href="#timeline-section" class="nav-item" data-nav="timeline">
+            <span class="nav-icon" aria-hidden="true">🕒</span>
+            时间线
+          </a>
+          <a href="#tag-cloud-block" class="nav-item" data-nav="tags">
+            <span class="nav-icon" aria-hidden="true">🏷</span>
+            标签管理
+          </a>
+          <a href="#recall-block" class="nav-item" data-nav="recall">
+            <span class="nav-icon" aria-hidden="true">🔄</span>
+            随机回顾
+          </a>
           <a
             href="graph.html"
-            class="btn-cosmos"
+            class="nav-item nav-item--cosmos"
             id="cosmos-link"
-            title="查看当前花园内的关联图谱，点击节点可回到时间线"
+            title="查看思考关联图谱"
           >
-            <svg class="btn-cosmos-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-              <circle cx="12" cy="12" r="2"/>
-              <circle cx="5" cy="8" r="1.5"/>
-              <circle cx="19" cy="7" r="1.5"/>
-              <circle cx="7" cy="18" r="1.5"/>
-              <circle cx="18" cy="17" r="1.5"/>
-              <path d="M12 12L5 8M12 12l7-5M12 12l-5 6M12 12l6 5"/>
-            </svg>
+            <span class="nav-icon" aria-hidden="true">✦</span>
             思维宇宙
           </a>
-          <button
-            type="button"
-            id="export-md-btn"
-            class="btn-export"
-            title="导出为 Markdown 文件"
-          >
-            <svg class="btn-export-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>
-            </svg>
-            导出 Markdown
+          <button type="button" class="nav-item nav-item--btn" id="export-md-btn">
+            <span class="nav-icon" aria-hidden="true">📤</span>
+            导出记录
           </button>
+          <button type="button" class="nav-item nav-item--btn" id="settings-open-btn">
+            <span class="nav-icon" aria-hidden="true">⚙</span>
+            设置
+          </button>
+        </nav>
+
+        <div class="trajectory-card" id="trajectory-widget" aria-label="认知轨迹"></div>
+
+        <p class="sidebar-footnote">
+          <span aria-hidden="true">☀</span>
+          保持记录，收获思考的复利。
+        </p>
+      </aside>
+
+      <div class="main-wrap">
+        <header class="page-header" id="dashboard-home">
+          <div class="page-header-text">
+            <h1 class="page-title" id="masthead-garden-name">
+              <span id="masthead-garden-name-text">思维花园</span>
+              <span class="page-title-icon" id="masthead-garden-emoji" aria-hidden="true">🌿</span>
+            </h1>
+            <p class="page-subtitle" id="masthead-garden-desc">
+              记录灵感，沉淀思考，让想法自然生长
+            </p>
           </div>
-        </div>
-      </header>
+          <div class="page-header-meta">
+            <span class="page-date-icon" aria-hidden="true">📅</span>
+            <time class="page-date" id="masthead-date" datetime=""></time>
+            <span class="page-sun-icon" aria-hidden="true">☀</span>
+          </div>
+        </header>
 
-      <main class="garden-room">
-        <div class="search-bar">
-          <span class="search-icon" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="7"></circle>
-              <path d="M20 20l-3-3"></path>
-            </svg>
-          </span>
-          <input
-            type="search"
-            id="search-input"
-            class="search-input"
-            placeholder="沿着记忆搜寻…"
-            autocomplete="off"
-          />
-          <kbd class="search-kbd" aria-hidden="true">⌘ K</kbd>
-        </div>
+        <main class="page-content garden-room">
+          <div class="search-bar">
+            <span class="search-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="7"></circle>
+                <path d="M20 20l-3-3"></path>
+              </svg>
+            </span>
+            <input
+              type="search"
+              id="search-input"
+              class="search-input"
+              placeholder="搜索你的思考、内容或标签..."
+              autocomplete="off"
+            />
+            <kbd class="search-kbd" id="search-kbd" aria-hidden="true">Ctrl K</kbd>
+          </div>
 
-        <section class="cognition-mirror" id="cognition-mirror" aria-label="认知洞察" hidden>
-          <header class="cognition-mirror-head">
-            <div>
-              <h2 class="cognition-mirror-title">认知观察</h2>
-              <p class="cognition-mirror-sub">长期注视你的思考轨迹，而非对话助手</p>
-            </div>
-            <span class="cognition-mirror-badge" id="cognition-mirror-badge" hidden>更新中</span>
-          </header>
-          <div id="cognition-mirror-list" class="cognition-mirror-list"></div>
-        </section>
-
-        <div class="insight-row">
-          <section class="insight-card" id="today-block" aria-label="今日思考">
-            <h2 class="card-heading">
-              <span class="card-heading-icon card-heading-icon--sun" aria-hidden="true">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-              </span>
-              今日思考
-            </h2>
-            <div id="today-content" class="card-body"></div>
+          <section class="panel panel-observe" id="cognition-mirror" aria-label="认知观察">
+            <header class="panel-head panel-head--stack">
+              <div class="panel-head-main">
+                <h2 class="panel-title">
+                  <span class="panel-icon panel-icon--spark" aria-hidden="true">✦</span>认知观察
+                </h2>
+                <p class="panel-desc">基于你的记录，发现一些有趣的洞察</p>
+              </div>
+              <span class="panel-badge" id="cognition-mirror-badge" hidden>更新中</span>
+            </header>
+            <div id="cognition-mirror-list" class="observe-grid"></div>
           </section>
 
-          <section class="insight-card" id="recall-block" aria-label="随机回顾">
-            <div class="card-heading-row">
-              <h2 class="card-heading">
-                <span class="card-heading-icon card-heading-icon--shuffle" aria-hidden="true">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
-                </span>
-                随机回顾
-              </h2>
-              <button type="button" id="recall-shuffle-btn" class="btn-recall" hidden>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
-                换一个
+          <div class="content-row">
+            <section class="panel" id="today-block" aria-label="今日思考">
+              <header class="panel-head">
+                <h2 class="panel-title">
+                  <span class="panel-icon panel-icon--sun" aria-hidden="true">☀</span>今日思考
+                </h2>
+                <button type="button" class="btn-soft" id="today-new-btn">+ 新记录</button>
+              </header>
+              <div id="today-content" class="panel-body"></div>
+            </section>
+
+            <section class="panel" id="pickup-block" aria-label="回顾拾遗">
+              <header class="panel-head">
+                <h2 class="panel-title">
+                  <span class="panel-icon panel-icon--pickup" aria-hidden="true">🔖</span>回顾拾遗
+                </h2>
+                <a href="#timeline-section" class="panel-link">全部回顾 →</a>
+              </header>
+              <div id="pickup-content" class="panel-body"></div>
+            </section>
+          </div>
+
+          <div class="content-row">
+            <section class="panel" id="tag-cloud-block" aria-label="标签云">
+              <header class="panel-head">
+                <h2 class="panel-title">
+                  <span class="panel-icon panel-icon--tag" aria-hidden="true">🏷</span>标签云
+                </h2>
+                <a href="#tag-cloud-block" class="panel-link">管理标签 →</a>
+              </header>
+              <div id="tag-cloud-content" class="panel-body"></div>
+            </section>
+
+            <section class="panel" id="recall-block" aria-label="随机回顾">
+              <header class="panel-head">
+                <h2 class="panel-title">
+                  <span class="panel-icon panel-icon--quote" aria-hidden="true">❝</span>随机回顾
+                </h2>
+                <button type="button" id="recall-shuffle-btn" class="panel-link panel-link--btn">
+                  🔄 换一条
+                </button>
+              </header>
+              <div id="recall-content" class="panel-body"></div>
+            </section>
+          </div>
+
+          <section class="panel panel-timeline" id="timeline-section" aria-label="思维时间线">
+            <header class="timeline-header">
+              <div class="timeline-header-text">
+                <h2 class="timeline-title">思维时间线</h2>
+                <p id="flow-hint" class="timeline-sub">沿着时间，慢慢向下走</p>
+              </div>
+              <div class="timeline-header-meta">
+                <p id="embedding-status" class="embedding-status" hidden aria-live="polite"></p>
+                <span id="timeline-count" class="timeline-count"></span>
+              </div>
+            </header>
+
+            <div class="timeline-track">
+              <div id="timeline" class="thought-stream"></div>
+            </div>
+
+            <div id="load-sentinel" class="load-sentinel" aria-hidden="true"></div>
+            <div class="stream-footer">
+              <button type="button" id="load-more-btn" class="btn-load-more" hidden>
+                加载更多
               </button>
+              <p id="load-status" class="stream-status"></p>
             </div>
-            <div id="recall-content" class="card-body"></div>
           </section>
-        </div>
+        </main>
 
-        <section class="timeline-section" aria-label="思维时间线">
-          <header class="timeline-header">
-            <div class="timeline-header-text">
-              <h2 class="timeline-title">思维时间线</h2>
-              <p id="flow-hint" class="timeline-sub">沿着时间，慢慢向下走</p>
-            </div>
-            <div class="timeline-header-meta">
-              <p id="embedding-status" class="embedding-status" hidden aria-live="polite"></p>
-              <span id="timeline-count" class="timeline-count"></span>
-            </div>
-          </header>
-
-          <div class="timeline-track">
-            <div id="timeline" class="thought-stream"></div>
-          </div>
-
-          <div id="load-sentinel" class="load-sentinel" aria-hidden="true"></div>
-          <div class="stream-footer">
-            <button type="button" id="load-more-btn" class="btn-load-more" hidden>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12a7 7 0 1014 0"/></svg>
-              加载更多
-            </button>
-            <p id="load-status" class="stream-status"></p>
-          </div>
-        </section>
-      </main>
-
-      <footer class="garden-connect" id="garden-connect" aria-label="联系开发者">
-        <div class="garden-connect-inner" id="garden-connect-inner"></div>
-      </footer>
+        <footer class="garden-connect" id="garden-connect" aria-label="联系开发者" hidden>
+          <div class="garden-connect-inner" id="garden-connect-inner"></div>
+        </footer>
       </div>
     </div>
 
+    <dialog id="settings-dialog" class="settings-dialog">
+      <form method="dialog" class="settings-dialog-inner">
+        <header class="settings-dialog-head">
+          <h3 class="settings-dialog-title">设置</h3>
+          <button type="button" class="settings-dialog-close" id="settings-close-btn" aria-label="关闭">×</button>
+        </header>
+        <section class="settings-section">
+          <h4 class="settings-section-title">花园空间</h4>
+          <div id="garden-list" class="garden-list" role="listbox" aria-label="花园列表"></div>
+          <button type="button" id="garden-create-btn" class="btn-soft btn-soft--block">
+            + 创建花园
+          </button>
+        </section>
+        <section class="settings-section settings-section--hint">
+          <p class="settings-hint">思维宇宙图谱已移至左侧导航「思维宇宙」，可随时查看思考之间的关联。</p>
+        </section>
+        <footer class="settings-dialog-foot">
+          <button type="button" class="btn-soft" id="settings-dismiss-btn">完成</button>
+        </footer>
+      </form>
+    </dialog>
+
     <dialog id="garden-dialog" class="garden-dialog">
       <form method="dialog" class="garden-dialog-form" id="garden-dialog-form">
-        <h3 class="garden-dialog-title" id="garden-dialog-title">开辟新花园</h3>
+        <h3 class="garden-dialog-title" id="garden-dialog-title">创建花园</h3>
         <label class="garden-dialog-label" for="garden-dialog-name">花园名称</label>
         <input
           type="text"
           id="garden-dialog-name"
           class="garden-dialog-input"
           maxlength="32"
-          placeholder="例如：工作探索、读书笔记…"
+          placeholder="例如：工作、阅读、生活…"
           required
         />
         <label class="garden-dialog-label" for="garden-dialog-desc">简介（可选）</label>
@@ -173,7 +228,7 @@
           class="garden-dialog-textarea"
           rows="2"
           maxlength="120"
-          placeholder="这片空间用来安放什么样的思考？"
+          placeholder="这片空间用来记录什么样的思考？"
         ></textarea>
         <div class="garden-dialog-actions">
           <button type="button" class="garden-dialog-cancel" id="garden-dialog-cancel">取消</button>
@@ -182,25 +237,43 @@
       </form>
     </dialog>
 
+    <div id="evidence-lightbox" class="evidence-lightbox" hidden aria-hidden="true">
+      <button type="button" class="evidence-lightbox-close" aria-label="关闭">×</button>
+      <img class="evidence-lightbox-img" alt="思维证据大图" />
+    </div>
+
+    <dialog id="thought-detail-dialog" class="settings-dialog thought-detail-dialog">
+      <form method="dialog" class="settings-dialog-inner">
+        <header class="settings-dialog-head">
+          <h3 class="settings-dialog-title">思考详情</h3>
+          <button type="button" class="settings-dialog-close" id="thought-detail-close" aria-label="关闭">×</button>
+        </header>
+        <div id="thought-detail-body" class="thought-detail-body"></div>
+        <footer class="settings-dialog-foot">
+          <button type="button" class="btn-soft" id="thought-detail-dismiss">关闭</button>
+        </footer>
+      </form>
+    </dialog>
+
     <script src="config/creator.js"></script>
     <script src="utils.js"></script>
     <script src="services/garden.service.js"></script>
     <script src="services/keyword.service.js"></script>
+    <script src="services/tag.service.js"></script>
+    <script src="services/related.service.js"></script>
+    <script src="services/source.service.js"></script>
+    <script src="services/cognitive.service.js"></script>
     <script src="services/similarity.service.js"></script>
     <script src="services/vector.service.js"></script>
     <script src="services/embedding-storage.service.js"></script>
     <script src="services/image-storage.service.js"></script>
     <script src="services/embedding.service.js"></script>
     <script src="services/relation.service.js"></script>
+    <script src="services/search.service.js?v=1.1.0"></script>
     <script src="services/cluster.service.js"></script>
     <script src="services/graph.service.js"></script>
     <script src="services/insight.service.js"></script>
     <script src="storage.js"></script>
-    <div id="evidence-lightbox" class="evidence-lightbox" hidden aria-hidden="true">
-      <button type="button" class="evidence-lightbox-close" aria-label="关闭">×</button>
-      <img class="evidence-lightbox-img" alt="思维证据大图" />
-    </div>
-
-    <script src="dashboard.js"></script>
+    <script src="dashboard.js?v=3.2.0"></script>
   </body>
 </html>

@@ -67,6 +67,60 @@ const MindTraceStorage = (function () {
   }
 
   /**
+   * 认知字段：tags + relatedIds（本地规则）
+   * @param {InspirationRecord} record
+   * @param {InspirationRecord[]} peerItems — 不含当前条时的其它记录
+   * @returns {InspirationRecord}
+   */
+  function enrichCognitiveFields(record, peerItems) {
+    let enriched = withKeywords(record);
+    if (typeof MindTraceTagService !== 'undefined') {
+      enriched = {
+        ...enriched,
+        tags: MindTraceTagService.assignTags(enriched),
+      };
+    }
+    if (typeof MindTraceRelatedService !== 'undefined') {
+      enriched = {
+        ...enriched,
+        relatedIds: MindTraceRelatedService.assignRelatedIds(
+          enriched,
+          peerItems || []
+        ),
+      };
+    }
+    return enriched;
+  }
+
+  /**
+   * 迁移补全 tags / relatedIds
+   * @param {InspirationRecord} item
+   * @param {InspirationRecord[]} allItems
+   * @returns {InspirationRecord}
+   */
+  function ensureCognitiveFields(item, allItems) {
+    const peers = (allItems || []).filter((x) => x.id !== item.id);
+    let base = item;
+    let changed = false;
+    if (!Array.isArray(base.tags) || !base.tags.length) {
+      if (typeof MindTraceTagService !== 'undefined') {
+        base = { ...base, tags: MindTraceTagService.assignTags(base) };
+        changed = true;
+      }
+    }
+    if (!Array.isArray(base.relatedIds)) {
+      if (typeof MindTraceRelatedService !== 'undefined') {
+        base = {
+          ...base,
+          relatedIds: MindTraceRelatedService.assignRelatedIds(base, peers),
+        };
+        changed = true;
+      }
+    }
+    return { record: base, changed };
+  }
+
+  /**
    * 合并 IndexedDB 中的 embedding
    * @param {InspirationRecord[]} items
    * @returns {Promise<InspirationRecord[]>}
@@ -134,13 +188,18 @@ const MindTraceStorage = (function () {
       base = MindTraceUtils.normalizeRecord(base);
       if (!Array.isArray(base.keywords)) {
         needsPersist = true;
-        return ensureKeywords(base);
+        base = ensureKeywords(base);
       }
       if (
         !Array.isArray(item.images) ||
         typeof item.imageOCRText !== 'string'
       ) {
         needsPersist = true;
+      }
+      const cognitive = ensureCognitiveFields(base, items);
+      if (cognitive.changed) {
+        needsPersist = true;
+        base = cognitive.record;
       }
       return base;
     });
@@ -229,10 +288,11 @@ const MindTraceStorage = (function () {
     const imageIds = await persistEvidenceImages(normalized.id, imageBlobs);
     if (imageIds.length) {
       normalized.images = [...(normalized.images || []), ...imageIds];
+      normalized.userEvidence = true;
     }
 
     const items = await getAllRaw();
-    const enriched = withKeywords(normalized);
+    const enriched = enrichCognitiveFields(normalized, items);
     const forStorage = stripEmbeddingForStorage(enriched);
     items.unshift(forStorage);
     await chrome.storage.local.set({
@@ -283,7 +343,8 @@ const MindTraceStorage = (function () {
       merged.versionHistory = [];
     }
 
-    const enriched = withKeywords(merged);
+    const peers = items.filter((x) => x.id !== id);
+    const enriched = enrichCognitiveFields(merged, peers);
     const forStorage = stripEmbeddingForStorage(enriched);
     items[index] = forStorage;
     await chrome.storage.local.set({
@@ -372,6 +433,11 @@ const MindTraceStorage = (function () {
   }
 
   async function search(query, gardenId) {
+    if (typeof MindTraceSearchService !== 'undefined') {
+      const result = await MindTraceSearchService.search(query, gardenId);
+      return result.items;
+    }
+
     const items = gardenId ? await getAll(gardenId) : await getAll();
     const q = (query || '').trim().toLowerCase();
     if (!q) {
@@ -388,6 +454,20 @@ const MindTraceStorage = (function () {
         (f) => f && String(f).toLowerCase().includes(q)
       );
     });
+  }
+
+  /**
+   * @param {string} query
+   * @param {string|null} [gardenId]
+   * @returns {Promise<{ items: InspirationRecord[], mode: string }>}
+   */
+  async function searchWithMeta(query, gardenId) {
+    if (typeof MindTraceSearchService !== 'undefined') {
+      return MindTraceSearchService.search(query, gardenId);
+    }
+    const items = await search(query, gardenId);
+    const q = (query || '').trim();
+    return { items, mode: q ? 'keyword' : 'none' };
   }
 
   /**
@@ -424,6 +504,7 @@ const MindTraceStorage = (function () {
     deleteById,
     getById,
     search,
+    searchWithMeta,
     clearAll,
     count,
     ensureKeywords,
@@ -447,4 +528,7 @@ const MindTraceStorage = (function () {
  * @property {number[]|null} [embedding] - 384 维语义向量（运行时从 IndexedDB 合并，不持久化到 chrome.storage）
  * @property {string[]} [images] - 思维证据图片 ID 列表（Blob 存 IndexedDB）
  * @property {string} [imageOCRText] - 图片 OCR 文本（预留，暂不参与 embedding）
+ * @property {string} [previewImageUrl] - 页面分享图 URL（旧版自动抓取，已不再写入）
+ * @property {boolean} [userEvidence] - 灵感现场是否为用户主动添加（粘贴/截图/右键保存）
+ * @property {string[]} [linkedThoughtIds] - 用户确认关联的旧思考 id
  */

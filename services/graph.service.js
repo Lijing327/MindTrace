@@ -214,14 +214,28 @@ const MindTraceGraphService = (function () {
         ? MindTraceClusterService.assignClusters(thoughts, links)
         : new Map(thoughtIds.map((id) => [id, 'cluster-0']));
 
+    const clusterThemeMap = new Map();
+    if (
+      typeof MindTraceClusterService !== 'undefined' &&
+      typeof MindTraceClusterService.buildClusterMeta === 'function'
+    ) {
+      MindTraceClusterService.buildClusterMeta(thoughts, links).forEach(
+        (meta) => {
+          clusterThemeMap.set(meta.clusterId, meta.theme);
+        }
+      );
+    }
+
     const nodes = thoughts.map((thought) => {
       const deg = degreeMap.get(thought.id) || 0;
+      const clusterId = clusterMap.get(thought.id) || 'cluster-0';
       return {
         id: thought.id,
         label: extractLabel(thought),
         createdAt: thought.createdAt,
         weight: computeNodeWeight(thought, deg, maxDegree, now),
-        cluster: clusterMap.get(thought.id) || 'cluster-0',
+        cluster: clusterId,
+        clusterLabel: clusterThemeMap.get(clusterId) || clusterId,
         degree: deg,
       };
     });

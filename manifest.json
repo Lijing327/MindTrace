@@ -1,12 +1,29 @@
 {
   "manifest_version": 3,
   "name": "MindTrace",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "浏览网页时快速记录灵感，并自动保留思考上下文。",
   "permissions": ["storage", "activeTab", "scripting", "contextMenus"],
+  "commands": {
+    "capture-selection": {
+      "suggested_key": {
+        "default": "Alt+Shift+M",
+        "mac": "Alt+Shift+M"
+      },
+      "description": "记录当前页选中的文字"
+    },
+    "quick-note": {
+      "suggested_key": {
+        "default": "Alt+Shift+N",
+        "mac": "Alt+Shift+N"
+      },
+      "description": "空白速记（无需划词）"
+    }
+  },
   "optional_host_permissions": [
     "https://huggingface.co/*",
-    "https://cdn.jsdelivr.net/*"
+    "https://cdn.jsdelivr.net/*",
+    "<all_urls>"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"

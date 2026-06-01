@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MindTrace 思维宇宙</title>
+  <link rel="stylesheet" href="./universe-static.css" />
+</head>
+<body>
+  <div class="universe-page">
+    <aside class="left-panel">
+      <div class="brand">
+        <div class="brand-icon">🌌</div>
+        <div>
+          <h1>思维宇宙</h1>
+          <p>发现想法之间隐藏的联系</p>
+        </div>
+      </div>
+
+      <div class="view-tabs">
+        <button class="active">星系视图</button>
+        <button>时间视图</button>
+      </div>
+
+      <div class="topic-card">
+        <h3>主题星系</h3>
+
+        <div class="topic active"><span class="dot purple"></span>全部主题 <b>10</b></div>
+        <div class="topic"><span class="dot blue"></span>AI 与产品 <b>28</b></div>
+        <div class="topic"><span class="dot violet"></span>知识系统 <b>21</b></div>
+        <div class="topic"><span class="dot cyan"></span>工作流 <b>18</b></div>
+        <div class="topic"><span class="dot amber"></span>财富与商业 <b>15</b></div>
+        <div class="topic"><span class="dot pink"></span>写作与表达 <b>12</b></div>
+        <div class="topic"><span class="dot green"></span>成长与思维 <b>10</b></div>
+        <div class="topic"><span class="dot sky"></span>学习与认知 <b>8</b></div>
+
+        <button class="new-topic">＋ 新建主题</button>
+      </div>
+
+      <div class="tools">
+        <button>＋</button>
+        <button>－</button>
+        <button>⛶</button>
+        <button>↻</button>
+      </div>
+    </aside>
+
+    <main class="main-space">
+      <header class="topbar">
+        <div class="metrics">
+          <div><b>10</b><span>思考节点</span></div>
+          <div><b>112</b><span>关联关系</span></div>
+          <div><b>5</b><span>主题聚类</span></div>
+          <div><b>0.78</b><span>网络密度</span></div>
+        </div>
+
+        <div class="actions">
+          <button>← 返回思维花园</button>
+          <button class="primary">导出图谱</button>
+        </div>
+      </header>
+
+      <section class="galaxy">
+        <div class="stars"></div>
+        <div class="nebula nebula-purple"></div>
+        <div class="nebula nebula-blue"></div>
+        <div class="nebula nebula-green"></div>
+
+        <svg class="connections" viewBox="0 0 1000 700" preserveAspectRatio="none">
+          <line x1="500" y1="350" x2="500" y2="135" class="line strong" />
+          <line x1="500" y1="350" x2="760" y2="270" class="line strong cyan" />
+          <line x1="500" y1="350" x2="700" y2="520" class="line medium amber" />
+          <line x1="500" y1="350" x2="500" y2="585" class="line medium pink" />
+          <line x1="500" y1="350" x2="245" y2="515" class="line medium green" />
+          <line x1="500" y1="350" x2="230" y2="285" class="line medium blue" />
+
+          <line x1="500" y1="135" x2="410" y2="70" class="line weak" />
+          <line x1="500" y1="135" x2="610" y2="75" class="line weak" />
+          <line x1="760" y1="270" x2="875" y2="220" class="line weak cyan" />
+          <line x1="760" y1="270" x2="900" y2="310" class="line weak cyan" />
+          <line x1="700" y1="520" x2="825" y2="555" class="line weak amber" />
+          <line x1="245" y1="515" x2="120" y2="470" class="line weak green" />
+          <line x1="230" y1="285" x2="110" y2="250" class="line weak blue" />
+        </svg>
+
+        <div class="node center" style="left:50%; top:50%;">
+          <strong>AI 与产品</strong>
+          <span>28 条记录</span>
+        </div>
+
+        <div class="node topic violet" style="left:50%; top:19%;">
+          <strong>知识系统</strong>
+          <span>21 条记录</span>
+        </div>
+
+        <div class="node topic cyan" style="left:76%; top:39%;">
+          <strong>工作流</strong>
+          <span>18 条记录</span>
+        </div>
+
+        <div class="node topic amber" style="left:70%; top:74%;">
+          <strong>财富与商业</strong>
+          <span>15 条记录</span>
+        </div>
+
+        <div class="node topic pink" style="left:50%; top:84%;">
+          <strong>写作与表达</strong>
+          <span>12 条记录</span>
+        </div>
+
+        <div class="node topic green" style="left:24%; top:73%;">
+          <strong>成长与思维</strong>
+          <span>10 条记录</span>
+        </div>
+
+        <div class="node topic blue" style="left:22%; top:42%;">
+          <strong>学习与认知</strong>
+          <span>8 条记录</span>
+        </div>
+
+        <div class="capsule" style="left:38%; top:8%;">第二大脑构建</div>
+        <div class="capsule" style="left:60%; top:9%;">PARA 方法实践</div>
+        <div class="capsule" style="left:80%; top:29%;">自动化工作流</div>
+        <div class="capsule" style="left:84%; top:42%;">效率提升方法</div>
+        <div class="capsule amber" style="left:78%; top:82%;">个人财富管理</div>
+        <div class="capsule green" style="left:11%; top:67%;">长期主义思维</div>
+        <div class="capsule blue" style="left:9%; top:34%;">刻意练习方法</div>
+
+        <div class="legend">
+          <span><i class="solid"></i> 强</span>
+          <span><i></i> 中</span>
+          <span><i class="dash"></i> 弱</span>
+        </div>
+      </section>
+
+      <footer class="footer-stats">
+        10 个主题 · 112 个思考 · 256 条关联 · 最后更新：2026-05-19 17:45
+      </footer>
+    </main>
+
+    <aside class="right-panel">
+      <div class="detail-card">
+        <div class="detail-head">
+          <div class="brain">🧠</div>
+          <div>
+            <h2>AI 与产品</h2>
+            <p>主题星系</p>
+          </div>
+          <span class="count">28 条记录</span>
+        </div>
+
+        <div class="section">
+          <h4>主题描述</h4>
+          <p>关于 AI 产品思考、体验、方法论、机会和解决方案的记录。</p>
+        </div>
+
+        <div class="section">
+          <h4>核心关键词</h4>
+          <div class="keywords">
+            <span>AI 产品</span>
+            <span>智能体</span>
+            <span>用户体验</span>
+            <span>商业模式</span>
+            <span>产品思维</span>
+            <span>自动化</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <h4>关联最强的主题</h4>
+          <div class="relation"><b>1</b>知识系统 <span>相关度 0.86</span></div>
+          <div class="relation"><b>2</b>工作流 <span>相关度 0.79</span></div>
+          <div class="relation"><b>3</b>财富与商业 <span>相关度 0.62</span></div>
+        </div>
+
+        <div class="section">
+          <h4>最近记录</h4>
+          <p class="record">2026-05-19　AI 时代，产品的核心是解决真实问题。</p>
+          <p class="record">2026-05-18　智能体产品的三个核心要素。</p>
+          <p class="record">2026-05-17　从工具到伙伴的产品演进思考。</p>
+        </div>
+
+        <button class="full">查看全部记录 →</button>
+        <button class="outline">☆ 设为关注主题</button>
+      </div>
+    </aside>
+  </div>
+
+  <script src="./universe-static.js"></script>
+</body>
+</html>

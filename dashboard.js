@@ -39,7 +39,7 @@
     '着', '过', '了', '呢', '吗', '吧', '啊', '呀', '哦', '嗯', '唉', '嘿',
   ]);
 
-  const gardenRoomEl = document.querySelector('.garden-room');
+  const gardenRoomEl = document.querySelector('.page-content');
   const todayContentEl = document.getElementById('today-content');
   const recallContentEl = document.getElementById('recall-content');
   const recallShuffleBtn = document.getElementById('recall-shuffle-btn');
@@ -60,18 +60,40 @@
   const gardenCreateBtn = document.getElementById('garden-create-btn');
   const gardenDialogEl = document.getElementById('garden-dialog');
   const gardenDialogFormEl = document.getElementById('garden-dialog-form');
+  const gardenDialogTitleEl = document.getElementById('garden-dialog-title');
   const gardenDialogNameEl = document.getElementById('garden-dialog-name');
   const gardenDialogDescEl = document.getElementById('garden-dialog-desc');
   const gardenDialogCancelEl = document.getElementById('garden-dialog-cancel');
+  const gardenDialogSubmitEl = document.getElementById('garden-dialog-submit');
   const mastheadGardenNameEl = document.getElementById('masthead-garden-name');
+  const mastheadGardenNameTextEl = document.getElementById(
+    'masthead-garden-name-text'
+  );
+  const mastheadGardenEmojiEl = document.getElementById('masthead-garden-emoji');
   const mastheadGardenDescEl = document.getElementById('masthead-garden-desc');
   const cosmosLinkEl = document.getElementById('cosmos-link');
+  const settingsOpenBtn = document.getElementById('settings-open-btn');
+  const settingsDialogEl = document.getElementById('settings-dialog');
+  const settingsCloseBtn = document.getElementById('settings-close-btn');
+  const settingsDismissBtn = document.getElementById('settings-dismiss-btn');
+  const todayNewBtn = document.getElementById('today-new-btn');
+  const searchKbdEl = document.getElementById('search-kbd');
   const cognitionMirrorEl = document.getElementById('cognition-mirror');
   const cognitionMirrorListEl = document.getElementById('cognition-mirror-list');
   const cognitionMirrorBadgeEl = document.getElementById('cognition-mirror-badge');
+  const pickupContentEl = document.getElementById('pickup-content');
+  const tagCloudContentEl = document.getElementById('tag-cloud-content');
+  const trajectoryWidgetEl = document.getElementById('trajectory-widget');
+  const mastheadDateEl = document.getElementById('masthead-date');
+  const thoughtDetailDialogEl = document.getElementById('thought-detail-dialog');
+  const thoughtDetailBodyEl = document.getElementById('thought-detail-body');
+  const thoughtDetailCloseEl = document.getElementById('thought-detail-close');
+  const thoughtDetailDismissEl = document.getElementById('thought-detail-dismiss');
 
   /** @type {Set<string>} */
   const imageObjectUrlCache = new Set();
+  /** @type {HTMLElement|null} */
+  let evidenceLightboxLastTriggerEl = null;
 
   let insightRefreshToken = 0;
 
@@ -87,6 +109,13 @@
   let currentRecallId = null;
   let editingItemId = null;
   let skipNextStorageReload = false;
+  /** @type {'create'|'edit'} */
+  let gardenDialogMode = 'create';
+  let editingGardenId = '';
+  let activeGardenMenuId = '';
+  /** @type {'none'|'keyword'|'semantic'|'hybrid'} */
+  let lastSearchMode = 'none';
+  let searchInFlight = 0;
 
   /**
    * 从思维宇宙跳转：dashboard.html?thought=<id>
@@ -178,7 +207,75 @@
     }, 4500);
   }
 
+  function updateSearchKbdLabel() {
+    if (!searchKbdEl) {
+      return;
+    }
+    const isMac =
+      typeof navigator !== 'undefined' &&
+      /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent);
+    searchKbdEl.textContent = isMac ? '⌘ K' : 'Ctrl K';
+  }
+
+  function updateMastheadDate() {
+    if (!mastheadDateEl) {
+      return;
+    }
+    const now = new Date();
+    const text = now.toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long',
+    });
+    mastheadDateEl.textContent = text;
+    mastheadDateEl.setAttribute('datetime', now.toISOString());
+  }
+
+  function setupSidebarNav() {
+    const navItems = document.querySelectorAll('.nav-item[data-nav]');
+    navItems.forEach((item) => {
+      if (item.dataset.bound === '1') {
+        return;
+      }
+      item.dataset.bound = '1';
+      item.addEventListener('click', () => {
+        navItems.forEach((el) => el.classList.remove('is-active'));
+        item.classList.add('is-active');
+      });
+    });
+  }
+
+  function setupSettingsDialog() {
+    const open = () => {
+      if (settingsDialogEl && typeof settingsDialogEl.showModal === 'function') {
+        settingsDialogEl.showModal();
+      }
+    };
+    const close = () => {
+      if (settingsDialogEl) {
+        settingsDialogEl.close();
+      }
+    };
+    if (settingsOpenBtn && settingsOpenBtn.dataset.bound !== '1') {
+      settingsOpenBtn.dataset.bound = '1';
+      settingsOpenBtn.addEventListener('click', open);
+    }
+    if (settingsCloseBtn && settingsCloseBtn.dataset.bound !== '1') {
+      settingsCloseBtn.dataset.bound = '1';
+      settingsCloseBtn.addEventListener('click', close);
+    }
+    if (settingsDismissBtn && settingsDismissBtn.dataset.bound !== '1') {
+      settingsDismissBtn.dataset.bound = '1';
+      settingsDismissBtn.addEventListener('click', close);
+    }
+  }
+
   async function init() {
+    updateSearchKbdLabel();
+    updateMastheadDate();
+    setupSidebarNav();
+    setupSettingsDialog();
     await setupGardenSwitcher();
 
     const focusId = getFocusThoughtIdFromUrl();
@@ -207,8 +304,17 @@
 
     searchInput.addEventListener(
       'input',
-      MindTraceUtils.debounce(onSearchInput, 200)
+      MindTraceUtils.debounce(onSearchInput, 380)
     );
+
+    document.addEventListener('keydown', (e) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key === 'k') {
+        e.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+      }
+    });
 
     if (recallShuffleBtn) {
       recallShuffleBtn.addEventListener('click', () => renderWhisper(allItems, true));
@@ -220,6 +326,14 @@
 
     if (loadMoreBtn) {
       loadMoreBtn.addEventListener('click', () => loadMoreBatch());
+    }
+
+    if (todayNewBtn) {
+      todayNewBtn.addEventListener('click', () => {
+        alert(
+          '在任意网页划词保存，或按 Alt+Shift+N 打开空白速记，即可新增一条思考。'
+        );
+      });
     }
 
     chrome.storage.onChanged.addListener((changes, area) => {
@@ -247,6 +361,7 @@
 
     setupInfiniteScroll();
     setupEvidenceLightbox();
+    setupThoughtDetailDialog();
     setupCreatorConnect();
     setupEmbeddingStatus();
   }
@@ -277,6 +392,7 @@
 
     if (mastheadLink) {
       mastheadLink.hidden = false;
+      mastheadLink.textContent = '联系作者';
     }
 
     const headline = MindTraceUtils.escapeHtml(MindTraceCreator.headline || '');
@@ -462,14 +578,16 @@
 
   function updateGardenChrome() {
     const garden = gardens.find((g) => g.id === currentGardenId);
-    if (mastheadGardenNameEl && garden) {
-      mastheadGardenNameEl.textContent = garden.name;
+    if (mastheadGardenEmojiEl) {
+      mastheadGardenEmojiEl.textContent = '🌿';
+    }
+    if (mastheadGardenNameTextEl) {
+      mastheadGardenNameTextEl.textContent = '思维花园';
     }
     if (mastheadGardenDescEl) {
-      const desc =
+      mastheadGardenDescEl.textContent =
         (garden && garden.description) ||
-        '一片慢慢生长的个人思考空间';
-      mastheadGardenDescEl.textContent = desc;
+        '记录灵感，沉淀思考，让想法自然生长';
     }
     if (cosmosLinkEl) {
       cosmosLinkEl.href = `graph.html?garden=${encodeURIComponent(currentGardenId)}`;
@@ -505,10 +623,10 @@
         const n = counts.get(g.id) || 0;
         const accent = g.color || '#6b8cce';
         return `
-          <button
-            type="button"
+          <div
             class="garden-card${active}"
             role="option"
+            tabindex="0"
             aria-selected="${g.id === currentGardenId}"
             data-garden-id="${MindTraceUtils.escapeHtml(g.id)}"
             style="--garden-accent: ${MindTraceUtils.escapeHtml(accent)}"
@@ -518,7 +636,30 @@
               <span class="garden-card-name">${MindTraceUtils.escapeHtml(g.name)}</span>
               <span class="garden-card-meta">${n} 条思考</span>
             </span>
-          </button>
+            <span class="garden-card-actions">
+              <button
+                type="button"
+                class="garden-card-action"
+                data-garden-action="toggle-menu"
+                data-garden-id="${MindTraceUtils.escapeHtml(g.id)}"
+                aria-haspopup="menu"
+                aria-expanded="${activeGardenMenuId === g.id ? 'true' : 'false'}"
+                title="花园操作"
+              >⋯</button>
+              <div
+                class="garden-card-menu${activeGardenMenuId === g.id ? ' is-open' : ''}"
+                role="menu"
+                data-garden-menu="${MindTraceUtils.escapeHtml(g.id)}"
+              >
+                <button type="button" role="menuitem" data-garden-action="edit" data-garden-id="${MindTraceUtils.escapeHtml(g.id)}">编辑花园</button>
+                ${
+                  g.id === MindTraceGardenService.DEFAULT_GARDEN_ID
+                    ? ''
+                    : `<button type="button" role="menuitem" class="is-danger" data-garden-action="delete" data-garden-id="${MindTraceUtils.escapeHtml(g.id)}">删除花园</button>`
+                }
+              </div>
+            </span>
+          </div>
         `;
       })
       .join('');
@@ -530,6 +671,9 @@
     }
     gardenListEl.dataset.bound = '1';
     gardenListEl.addEventListener('click', onGardenCardClick);
+    gardenListEl.addEventListener('keydown', onGardenCardKeydown);
+    document.addEventListener('click', onGardenMenuOutsideClick);
+    document.addEventListener('keydown', onGardenMenuKeydown);
 
     if (gardenCreateBtn && gardenCreateBtn.dataset.bound !== '1') {
       gardenCreateBtn.dataset.bound = '1';
@@ -553,6 +697,14 @@
     if (!gardenDialogEl) {
       return;
     }
+    gardenDialogMode = 'create';
+    editingGardenId = '';
+    if (gardenDialogTitleEl) {
+      gardenDialogTitleEl.textContent = '创建花园';
+    }
+    if (gardenDialogSubmitEl) {
+      gardenDialogSubmitEl.textContent = '创建';
+    }
     if (gardenDialogNameEl) {
       gardenDialogNameEl.value = '';
     }
@@ -574,10 +726,18 @@
     const description =
       (gardenDialogDescEl && gardenDialogDescEl.value.trim()) || '';
     try {
-      const garden = await MindTraceGardenService.createGarden({
-        name,
-        description,
-      });
+      let garden = null;
+      if (gardenDialogMode === 'edit' && editingGardenId) {
+        garden = await MindTraceGardenService.updateGarden(editingGardenId, {
+          name,
+          description,
+        });
+      } else {
+        garden = await MindTraceGardenService.createGarden({
+          name,
+          description,
+        });
+      }
       gardens = await MindTraceGardenService.getGardens();
       currentGardenId = garden.id;
       if (gardenDialogEl) {
@@ -585,21 +745,139 @@
       }
       await switchToGarden(garden.id);
     } catch (err) {
-      console.error('[MindTrace] 创建花园失败:', err);
-      alert('创建花园失败，请稍后再试');
+      console.error('[MindTrace] 花园保存失败:', err);
+      alert('花园保存失败，请稍后再试');
     }
   }
 
   async function onGardenCardClick(event) {
-    const card = event.target.closest('[data-garden-id]');
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) {
+      return;
+    }
+    const card = target.closest('[data-garden-id]');
     if (!card) {
       return;
     }
     const gardenId = card.getAttribute('data-garden-id');
-    if (!gardenId || gardenId === currentGardenId) {
+    if (!gardenId) {
+      return;
+    }
+    const actionEl = target.closest('[data-garden-action]');
+    if (actionEl) {
+      const action = actionEl.getAttribute('data-garden-action');
+      if (action === 'toggle-menu') {
+        event.preventDefault();
+        event.stopPropagation();
+        activeGardenMenuId = activeGardenMenuId === gardenId ? '' : gardenId;
+        await renderGardenRail();
+        return;
+      }
+      if (action === 'edit') {
+        event.preventDefault();
+        event.stopPropagation();
+        activeGardenMenuId = '';
+        openGardenEditDialog(gardens.find((g) => g.id === gardenId));
+        return;
+      }
+      if (action === 'delete') {
+        event.preventDefault();
+        event.stopPropagation();
+        activeGardenMenuId = '';
+        await deleteGarden(gardens.find((g) => g.id === gardenId));
+      }
+      return;
+    }
+    activeGardenMenuId = '';
+    if (gardenId === currentGardenId) {
       return;
     }
     await switchToGarden(gardenId);
+  }
+
+  function onGardenCardKeydown(event) {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) {
+      return;
+    }
+    const card = target.closest('.garden-card[data-garden-id]');
+    if (!card) {
+      return;
+    }
+    event.preventDefault();
+    card.click();
+  }
+
+  function openGardenEditDialog(garden) {
+    if (!gardenDialogEl || !garden) {
+      return;
+    }
+    gardenDialogMode = 'edit';
+    editingGardenId = garden.id;
+    if (gardenDialogTitleEl) {
+      gardenDialogTitleEl.textContent = '编辑花园';
+    }
+    if (gardenDialogSubmitEl) {
+      gardenDialogSubmitEl.textContent = '保存';
+    }
+    if (gardenDialogNameEl) {
+      gardenDialogNameEl.value = garden.name || '';
+    }
+    if (gardenDialogDescEl) {
+      gardenDialogDescEl.value = garden.description || '';
+    }
+    gardenDialogEl.showModal();
+    if (gardenDialogNameEl) {
+      gardenDialogNameEl.focus();
+      gardenDialogNameEl.select();
+    }
+  }
+
+  async function deleteGarden(garden) {
+    if (!garden) {
+      return;
+    }
+    const ok = window.confirm(
+      `确定删除花园「${garden.name}」吗？\n其下思考将迁移到默认花园。`
+    );
+    if (!ok) {
+      return;
+    }
+    try {
+      await MindTraceGardenService.deleteGarden(garden.id);
+      gardens = await MindTraceGardenService.getGardens();
+      const nextId = await MindTraceGardenService.getCurrentGardenId();
+      await switchToGarden(nextId);
+    } catch (err) {
+      console.error('[MindTrace] 删除花园失败:', err);
+      alert('删除花园失败，请稍后再试');
+    }
+  }
+
+  function onGardenMenuOutsideClick(event) {
+    if (!activeGardenMenuId) {
+      return;
+    }
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) {
+      return;
+    }
+    if (target.closest('.garden-card-actions')) {
+      return;
+    }
+    activeGardenMenuId = '';
+    renderGardenRail();
+  }
+
+  function onGardenMenuKeydown(event) {
+    if (event.key !== 'Escape' || !activeGardenMenuId) {
+      return;
+    }
+    activeGardenMenuId = '';
+    renderGardenRail();
   }
 
   async function switchToGarden(gardenId) {
@@ -610,54 +888,156 @@
     await reloadAllData(searchInput.value);
   }
 
+  const OBSERVE_SLOTS = [
+    {
+      key: 'theme',
+      label: '高频主题',
+      type: 'top-theme',
+      tone: 'purple',
+      icon: '🧠',
+    },
+    {
+      key: 'time',
+      label: '思考时段',
+      type: null,
+      tone: 'orange',
+      icon: '💡',
+    },
+    {
+      key: 'focus',
+      label: '持续关注',
+      type: 'long-term-interest',
+      tone: 'pink',
+      icon: '🎯',
+    },
+    {
+      key: 'trend',
+      label: '思考趋势',
+      type: 'cognitive-evolution',
+      tone: 'green',
+      icon: '🌱',
+    },
+  ];
+
   /**
-   * @param {string} type
-   * @returns {string}
+   * @param {string} content
+   * @returns {{ value: string, hint: string }}
    */
-  function insightObserveClass(type) {
-    switch (type) {
-      case MindTraceInsightService.INSIGHT_TYPES.TOP_THEME:
-        return 'cognition-observe--theme';
-      case MindTraceInsightService.INSIGHT_TYPES.LONG_TERM:
-        return 'cognition-observe--long-term';
-      case MindTraceInsightService.INSIGHT_TYPES.EVOLUTION:
-        return 'cognition-observe--evolution';
-      case MindTraceInsightService.INSIGHT_TYPES.GARDEN_FOCUS:
-        return 'cognition-observe--garden';
-      default:
-        return 'cognition-observe--theme';
+  function splitInsightContent(content) {
+    const raw = (content || '').trim();
+    if (!raw) {
+      return { value: '—', hint: '记录更多思考后生成' };
     }
+    const parts = raw.split(/[·•\n]/).map((p) => p.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      return { value: parts[0], hint: parts.slice(1).join(' · ') };
+    }
+    if (raw.length > 36) {
+      return { value: raw.slice(0, 36), hint: raw.slice(36) };
+    }
+    return { value: raw, hint: '' };
+  }
+
+  /**
+   * @param {InspirationRecord[]} items
+   * @returns {{ value: string, hint: string }}
+   */
+  function computeThinkingTimeSlot(items) {
+    const now = Date.now();
+    const weekMs = 7 * 24 * 60 * 60 * 1000;
+    const hours = new Array(24).fill(0);
+    (items || []).forEach((it) => {
+      if (!it.createdAt || now - it.createdAt > weekMs) {
+        return;
+      }
+      hours[new Date(it.createdAt).getHours()] += 1;
+    });
+    let peak = 0;
+    let peakH = 0;
+    hours.forEach((c, h) => {
+      if (c > peak) {
+        peak = c;
+        peakH = h;
+      }
+    });
+    if (!peak) {
+      return { value: '—', hint: '记录后自动分析活跃时段' };
+    }
+    const end = (peakH + 2) % 24;
+    return {
+      value: `${peakH}点-${end}点`,
+      hint: '是你最活跃的思考时间',
+    };
   }
 
   /**
    * @param {Insight[]} insights
+   * @param {InspirationRecord[]} items
    */
-  function renderCognitionMirror(insights) {
-    if (!cognitionMirrorEl || !cognitionMirrorListEl) {
+  function renderCognitionMirror(insights, items) {
+    if (!cognitionMirrorListEl) {
       return;
     }
 
-    const list = (insights || []).filter((i) => i && i.content);
-    if (!list.length) {
-      cognitionMirrorEl.hidden = true;
-      cognitionMirrorListEl.innerHTML = '';
-      return;
+    const byType = new Map();
+    (insights || []).forEach((ins) => {
+      if (ins && ins.type && ins.content) {
+        byType.set(ins.type, ins);
+      }
+    });
+
+    const timeSlot = computeThinkingTimeSlot(items || allItems);
+
+    cognitionMirrorListEl.innerHTML = OBSERVE_SLOTS.map((slot) => {
+      let value = '—';
+      let hint = '记录更多思考后生成';
+
+      if (slot.key === 'time') {
+        value = timeSlot.value;
+        hint = timeSlot.hint;
+      } else {
+        const ins = slot.type ? byType.get(slot.type) : null;
+        if (ins) {
+          const split = splitInsightContent(ins.content);
+          value = split.value;
+          hint = split.hint || ins.title || hint;
+        }
+      }
+
+      return `
+        <article class="observe-stat-card observe-stat-card--${slot.tone}">
+          <span class="observe-stat-icon" aria-hidden="true">${slot.icon}</span>
+          <h3 class="observe-stat-label">${MindTraceUtils.escapeHtml(slot.label)}</h3>
+          <p class="observe-stat-value">${MindTraceUtils.escapeHtml(value)}</p>
+          <p class="observe-stat-hint">${MindTraceUtils.escapeHtml(hint)}</p>
+        </article>
+      `;
+    }).join('');
+
+    if (cognitionMirrorEl) {
+      cognitionMirrorEl.hidden = false;
     }
 
-    cognitionMirrorEl.hidden = false;
-    cognitionMirrorListEl.innerHTML = list
-      .map((insight) => {
-        const cls = insightObserveClass(insight.type);
-        const title = MindTraceUtils.escapeHtml(insight.title || '观察');
-        const body = MindTraceUtils.escapeHtml(insight.content || '');
-        return `
-          <article class="cognition-observe ${cls}" data-insight-type="${MindTraceUtils.escapeHtml(insight.type || '')}">
-            <h3 class="cognition-observe-title">${title}</h3>
-            <p class="cognition-observe-body">${body}</p>
-          </article>
-        `;
-      })
-      .join('');
+    let summaryEl = cognitionMirrorEl
+      ? cognitionMirrorEl.querySelector('.cognitive-growth-summary')
+      : null;
+    if (
+      typeof MindTraceCognitiveService !== 'undefined' &&
+      cognitionMirrorEl
+    ) {
+      const insights = MindTraceCognitiveService.buildInsights(
+        items || allItems,
+        currentGardenId
+      );
+      if (!summaryEl) {
+        summaryEl = document.createElement('p');
+        summaryEl.className = 'panel-desc cognitive-growth-summary';
+        cognitionMirrorListEl.insertAdjacentElement('afterend', summaryEl);
+      }
+      summaryEl.textContent = insights.summary || '';
+    } else if (summaryEl) {
+      summaryEl.remove();
+    }
   }
 
   function setCognitionMirrorLoading(loading) {
@@ -680,7 +1060,7 @@
           (i) => i.type === MindTraceInsightService.INSIGHT_TYPES.GARDEN_FOCUS
         );
       }
-      renderCognitionMirror([...gardenInsights, ...globalFocus]);
+      renderCognitionMirror([...gardenInsights, ...globalFocus], allItems);
     } catch (err) {
       console.warn('[MindTrace] insight cache render failed:', err);
     }
@@ -695,9 +1075,7 @@
     await refreshCognitionMirrorFromCache();
 
     if (allItems.length < 2) {
-      if (cognitionMirrorEl) {
-        cognitionMirrorEl.hidden = true;
-      }
+      renderCognitionMirror([], allItems);
       return;
     }
 
@@ -717,7 +1095,7 @@
       }
 
       if (token === insightRefreshToken) {
-        renderCognitionMirror(merged);
+        renderCognitionMirror(merged, allItems);
       }
     } catch (err) {
       console.warn('[MindTrace] insight load failed:', err);
@@ -746,7 +1124,10 @@
   async function reloadAllData(query) {
     try {
       allItems = await MindTraceStorage.getAll(currentGardenId);
-      renderTodayCard(allItems);
+      await renderTodayCard(allItems);
+      renderPickupList(allItems);
+      renderTagCloud(allItems);
+      renderTrajectoryWidget(allItems);
       renderWhisper(allItems);
       await refreshTimeline(query || '');
       loadCognitionMirror();
@@ -764,6 +1145,25 @@
     const q = searchInput.value;
     gardenRoomEl.classList.toggle('is-searching', !!(q && q.trim()));
     refreshTimeline(q);
+  }
+
+  /**
+   * @param {'none'|'keyword'|'semantic'|'hybrid'} mode
+   * @param {string} query
+   * @returns {string}
+   */
+  function searchModeHint(mode, query) {
+    const q = (query || '').trim();
+    if (!q) {
+      return '';
+    }
+    if (mode === 'semantic') {
+      return '按语义相似排序';
+    }
+    if (mode === 'hybrid') {
+      return '语义相似 + 关键词匹配';
+    }
+    return '';
   }
 
   /* —— 今日思考 —— */
@@ -835,34 +1235,311 @@
     `;
   }
 
-  function renderTodayCard(items) {
+  function countWeekRecords(items) {
+    const start = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return items.filter((item) => (item.createdAt || 0) >= start).length;
+  }
+
+  /**
+   * @param {InspirationRecord[]} items
+   * @returns {number}
+   */
+  function computeRecordStreak(items) {
+    const daySet = new Set();
+    (items || []).forEach((item) => {
+      const d = new Date(item.createdAt || 0);
+      daySet.add(
+        `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+      );
+    });
+    let streak = 0;
+    const cursor = new Date();
+    for (let i = 0; i < 400; i++) {
+      const d = new Date(cursor);
+      d.setDate(cursor.getDate() - i);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      if (daySet.has(key)) {
+        streak += 1;
+      } else if (i > 0) {
+        break;
+      }
+    }
+    return streak;
+  }
+
+  /**
+   * @param {InspirationRecord[]} items
+   * @returns {Array<{ word: string, count: number }>}
+   */
+  function aggregateTagCounts(items) {
+    const freq = new Map();
+    (items || []).forEach((item) => {
+      (item.tags || []).forEach((tag) => {
+        const t = String(tag).trim();
+        if (t) {
+          freq.set(t, (freq.get(t) || 0) + 1);
+        }
+      });
+      const text = [item.note, item.selectedText].filter(Boolean).join('\n');
+      tokenizeForKeywords(text).forEach((tok) => {
+        if (tok.length < 2 || STOPWORDS.has(tok)) {
+          return;
+        }
+        if (!freq.has(tok)) {
+          freq.set(tok, (freq.get(tok) || 0) + 1);
+        }
+      });
+      (item.keywords || []).forEach((kw) => {
+        if (kw && !STOPWORDS.has(kw) && !freq.has(kw)) {
+          freq.set(kw, (freq.get(kw) || 0) + 1);
+        }
+      });
+    });
+    return [...freq.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12)
+      .map(([word, count]) => ({ word, count }));
+  }
+
+  /**
+   * @param {InspirationRecord} record
+   * @returns {string}
+   */
+  function getRecordPreviewLabel(record) {
+    const note = (record.note || '').trim().split('\n')[0];
+    if (note) {
+      return note.length > 64 ? note.slice(0, 64) + '…' : note;
+    }
+    const sel = (record.selectedText || '').trim();
+    if (sel) {
+      return sel.length > 64 ? sel.slice(0, 64) + '…' : sel;
+    }
+    return record.pageTitle || '（未命名思考）';
+  }
+
+  /**
+   * @param {InspirationRecord} record
+   * @returns {string}
+   */
+  function getRecordTag(record) {
+    const tags = record.tags || [];
+    if (tags.length) {
+      return tags[0];
+    }
+    const kws = record.keywords || [];
+    if (kws.length) {
+      return kws[0];
+    }
+    const tokens = tokenizeForKeywords(
+      [record.note, record.selectedText].filter(Boolean).join('\n')
+    );
+    return tokens[0] || '思考';
+  }
+
+  function renderPickupList(items) {
+    if (!pickupContentEl) {
+      return;
+    }
+    const recent = (items || []).slice(0, 3);
+    if (!recent.length) {
+      pickupContentEl.innerHTML =
+        '<p class="card-empty">记录更多思考后，会在这里显示最近片段</p>';
+      return;
+    }
+    pickupContentEl.innerHTML = `
+      <ul class="pickup-list">
+        ${recent
+          .map((item) => {
+            const d = new Date(item.createdAt);
+            const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            return `
+              <li class="pickup-item" data-thought-id="${MindTraceUtils.escapeHtml(item.id)}" tabindex="0" role="button">
+                <span class="pickup-bullet" aria-hidden="true"></span>
+                <div class="pickup-item-main">
+                  <p class="pickup-date">${MindTraceUtils.escapeHtml(date)}</p>
+                  <p class="pickup-text">${MindTraceUtils.escapeHtml(getRecordPreviewLabel(item))}</p>
+                </div>
+                <span class="pickup-tag">${MindTraceUtils.escapeHtml(getRecordTag(item))}</span>
+              </li>
+            `;
+          })
+          .join('')}
+      </ul>
+    `;
+    pickupContentEl.querySelectorAll('.pickup-item').forEach((el) => {
+      el.addEventListener('click', () => {
+        const id = el.getAttribute('data-thought-id');
+        if (id) {
+          focusThoughtInTimeline(id);
+        }
+      });
+    });
+  }
+
+  function renderTagCloud(items) {
+    if (!tagCloudContentEl) {
+      return;
+    }
+    const tags = aggregateTagCounts(items);
+    const tagHtml = tags.length
+      ? `<div class="tag-cloud-grid">
+        ${tags
+          .map(
+            ({ word, count }) =>
+              `<button type="button" class="tag-cloud-pill" data-tag-filter="${MindTraceUtils.escapeHtml(word)}">${MindTraceUtils.escapeHtml(word)} <strong>${count}</strong></button>`
+          )
+          .join('')}
+      </div>`
+      : '<p class="card-empty">保存记录后会自动生成认知标签</p>';
+
+    let sourcesHtml = '';
+    if (typeof MindTraceSourceService !== 'undefined') {
+      const groups = MindTraceSourceService.buildSourceGroups(
+        items,
+        currentGardenId
+      ).slice(0, 6);
+      sourcesHtml = groups.length
+        ? `<div class="reading-sources-block">
+            <p class="tag-label">阅读来源</p>
+            <ul class="reading-sources-list">
+              ${groups
+                .map(
+                  (g) => `
+                <li>
+                  <button type="button" class="reading-source-item" data-source-filter="${MindTraceUtils.escapeHtml(g.title)}">
+                    <span class="reading-source-title">${MindTraceUtils.escapeHtml(g.title)}</span>
+                    <span class="reading-source-count">${g.count} 条思考</span>
+                  </button>
+                </li>`
+                )
+                .join('')}
+            </ul>
+          </div>`
+        : '';
+    }
+
+    tagCloudContentEl.innerHTML = tagHtml + sourcesHtml;
+
+    tagCloudContentEl.querySelectorAll('[data-tag-filter]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const tag = btn.getAttribute('data-tag-filter');
+        if (tag && searchInput) {
+          searchInput.value = tag;
+          searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      });
+    });
+    tagCloudContentEl.querySelectorAll('[data-source-filter]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const title = btn.getAttribute('data-source-filter');
+        if (title && searchInput) {
+          searchInput.value = title;
+          searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      });
+    });
+  }
+
+  /**
+   * @param {InspirationRecord[]} items
+   */
+  function renderTrajectoryWidget(items) {
+    if (!trajectoryWidgetEl) {
+      return;
+    }
+    const total = items.length;
+    const streak = computeRecordStreak(items);
+    const themes = extractTopKeywords(items, 3);
+    const themeText = themes.length ? themes.join(' · ') : '—';
+
+    const days = 14;
+    const counts = [];
+    const now = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      const end = start + 86400000;
+      const n = items.filter(
+        (it) => it.createdAt >= start && it.createdAt < end
+      ).length;
+      counts.push(n);
+    }
+    const max = Math.max(1, ...counts);
+    const w = 200;
+    const h = 40;
+    const step = w / Math.max(1, counts.length - 1);
+    const points = counts
+      .map((c, i) => {
+        const x = i * step;
+        const y = h - (c / max) * (h - 6) - 3;
+        return `${x},${y}`;
+      })
+      .join(' ');
+
+    trajectoryWidgetEl.innerHTML = `
+      <div class="trajectory-card-head">
+        <p class="trajectory-card-title">认知轨迹</p>
+        <span class="trajectory-card-icon" aria-hidden="true">📈</span>
+      </div>
+      <svg class="trajectory-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+        <polyline fill="none" stroke="url(#trajGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${points}"/>
+        <defs>
+          <linearGradient id="trajGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#8b5cf6"/>
+            <stop offset="100%" stop-color="#b7791f"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <div class="trajectory-stats">
+        <div class="trajectory-stat"><span>累计记录</span><strong>${total}</strong></div>
+        <div class="trajectory-stat"><span>连续记录</span><strong>${streak} 天</strong></div>
+      </div>
+      <p class="trajectory-themes-label">最常出现主题</p>
+      <p class="trajectory-themes">${MindTraceUtils.escapeHtml(themeText)}</p>
+      <a href="#timeline-section" class="trajectory-link">
+        <span>查看完整统计</span><span aria-hidden="true">→</span>
+      </a>
+    `;
+  }
+
+  async function renderTodayCard(items) {
+    if (!todayContentEl) {
+      return;
+    }
     const total = items.length;
     const todayCount = countTodayRecords(items);
-    const keywords = extractTopKeywords(items);
+    const weekCount = countWeekRecords(items);
+    const streak = computeRecordStreak(items);
 
-    if (total === 0) {
-      todayContentEl.innerHTML =
-        '<p class="card-empty">开始记录你的第一条思考吧。在网页上划词即可。</p>';
-      return;
-    }
+    const metricsHtml = `
+      <div class="today-metrics">
+        <div class="today-metric">
+          <span class="today-metric-value">${todayCount}</span>
+          <span class="today-metric-label">今日记录</span>
+        </div>
+        <div class="today-metric">
+          <span class="today-metric-value">${weekCount}</span>
+          <span class="today-metric-label">近7天</span>
+        </div>
+        <div class="today-metric">
+          <span class="today-metric-value">${streak}</span>
+          <span class="today-metric-label">连续天数</span>
+        </div>
+      </div>
+    `;
 
-    const tagsHtml = buildTagPills(keywords);
-
-    if (todayCount === 0) {
-      todayContentEl.innerHTML = `
-        <p class="today-lead">今天还没有新的思考片段</p>
-        <p class="today-note">去浏览网页，划下触动你的那一句话</p>
-        ${tagsHtml}
-      `;
-      return;
-    }
-
-    const countText =
-      todayCount === 1 ? '1 个' : `${todayCount} 个`;
+    const statusText =
+      todayCount > 0
+        ? '今天的思考已记录 / 继续保持，思维正在生长 🌱'
+        : '继续保持，思维正在生长';
 
     todayContentEl.innerHTML = `
-      <p class="today-lead">今天留下了 <strong>${countText}</strong>思考片段</p>
-      ${tagsHtml}
+      ${metricsHtml}
+      <div class="today-status">
+        <p class="today-status-icon" aria-hidden="true">🌱</p>
+        <p class="today-status-text">${MindTraceUtils.escapeHtml(statusText)}</p>
+      </div>
     `;
   }
 
@@ -939,18 +1616,13 @@
     currentRecallId = record.id;
     recallShuffleBtn.hidden = false;
 
-    const when = formatRelativeTime(record.createdAt);
+    const rd = new Date(record.createdAt);
+    const dateLine = `${rd.getFullYear()}-${String(rd.getMonth() + 1).padStart(2, '0')}-${String(rd.getDate()).padStart(2, '0')}`;
     const quote = MindTraceUtils.escapeHtml(getRecallText(record));
-    const sourceTitle = MindTraceUtils.escapeHtml(
-      record.pageTitle || '未知页面'
-    );
-    const sourceUrl = MindTraceUtils.escapeHtml(record.pageUrl || '#');
 
     recallContentEl.innerHTML = `
       <blockquote class="recall-quote">${quote}</blockquote>
-      <p class="recall-meta">
-        ${when} · 来自 <a href="${sourceUrl}" target="_blank" rel="noopener noreferrer">${sourceTitle}</a>
-      </p>
+      <p class="recall-date">—— ${MindTraceUtils.escapeHtml(dateLine)}</p>
     `;
   }
 
@@ -966,11 +1638,17 @@
   async function refreshTimeline(query) {
     cancelAllEdits();
     revokeCachedImageUrls();
+    const token = ++searchInFlight;
     try {
-      filteredItems = await MindTraceStorage.search(
+      const result = await MindTraceStorage.searchWithMeta(
         query || '',
         currentGardenId
       );
+      if (token !== searchInFlight) {
+        return;
+      }
+      filteredItems = result.items;
+      lastSearchMode = result.mode || 'keyword';
       renderedCount = 0;
       timelineEl.innerHTML = '';
       await updateTimelineHeader(filteredItems.length, query);
@@ -995,9 +1673,12 @@
     const q = (query || '').trim();
 
     if (q) {
+      const modeExtra = searchModeHint(lastSearchMode, q);
       flowHintEl.textContent =
         shownCount > 0
-          ? `与「${q}」相关的思考`
+          ? modeExtra
+            ? `与「${q}」相关的思考 · ${modeExtra}`
+            : `与「${q}」相关的思考`
           : '没有找到相关的思考';
       timelineCountEl.textContent =
         shownCount > 0 ? `${shownCount} 条相关` : '';
@@ -1012,7 +1693,7 @@
     timelineEl.innerHTML = `
       <p class="stream-empty">${
         hasQuery
-          ? '没有找到相关的思考<br/>试试其他关键词'
+          ? '没有找到相关的思考<br/>试试换一句话描述，或等语义模型补全向量后再搜'
           : '还没有思考留下痕迹<br/>在网页划词，让灵感落入花园'
       }</p>
     `;
@@ -1147,40 +1828,174 @@
     return label.length > 56 ? label.slice(0, 56) + '…' : label;
   }
 
+  function getRelatedForItem(item) {
+    if (typeof MindTraceRelatedService !== 'undefined') {
+      return MindTraceRelatedService.toRelationView(item, allItems);
+    }
+    return MindTraceRelationService.findRelatedThoughts(item, allItems);
+  }
+
+  function formatRelationScore(score) {
+    if (typeof score !== 'number') {
+      return '';
+    }
+    const pct = Math.round(Math.min(1, Math.max(0, score)) * 100);
+    return pct >= 18 ? `${(score).toFixed(2)}` : '';
+  }
+
   function buildRelatedThoughtsHtml(item) {
-    const related = MindTraceRelationService.findRelatedThoughts(
-      item,
-      allItems
-    );
+    const related = getRelatedForItem(item);
     if (!related.length) {
       return '';
     }
 
     const listItems = related
-      .map(({ record, score, semantic }) => {
+      .map(({ record, score }) => {
         const label = MindTraceUtils.escapeHtml(
           getRelatedDisplayLabel(record)
         );
-        const scoreHtml =
-          semantic && typeof score === 'number'
-            ? `<span class="thought-related-score">${Math.round(
-                Math.min(1, Math.max(0, score)) * 100
-              )}%</span>`
-            : '';
-        return `<li class="thought-related-item"><span class="thought-related-title">${label}</span>${scoreHtml}</li>`;
+        const scoreText = formatRelationScore(score);
+        const scoreHtml = scoreText
+          ? `<span class="thought-related-score">关联 ${scoreText}</span>`
+          : '';
+        return `<li class="thought-related-item">
+          <button type="button" class="thought-related-link" data-open-detail-id="${MindTraceUtils.escapeHtml(record.id)}">
+            <span class="thought-related-title">${label}</span>${scoreHtml}
+          </button>
+        </li>`;
       })
       .join('');
 
-    const hasSemantic = related.some((r) => r.semantic);
-
     return `
       <div class="thought-related" aria-label="相关思考">
-        <p class="thought-related-label">${
-          hasSemantic ? '🧠 与以下思考高度相关：' : '你似乎以前也想过：'
-        }</p>
+        <p class="thought-related-label">相关想法</p>
         <ul class="thought-related-list">${listItems}</ul>
       </div>
     `;
+  }
+
+  function buildThoughtTagsHtml(item) {
+    const tags = item.tags || [];
+    if (!tags.length) {
+      return '';
+    }
+    const pills = tags
+      .map(
+        (t) =>
+          `<span class="tag-pill thought-tag-pill">${MindTraceUtils.escapeHtml(t)}</span>`
+      )
+      .join('');
+    return `<div class="thought-tags" aria-label="认知标签">${pills}</div>`;
+  }
+
+  function buildCognitivePathHtml(item) {
+    const tags = (item.tags || []).join(' → ');
+    const source = (item.pageTitle || '').trim() || '未知来源';
+    const path = tags
+      ? `${tags} · 来自 ${source}`
+      : `来自 ${source}`;
+    return `<p class="thought-cognitive-path"><span class="thought-cognitive-path-label">认知路径</span>${MindTraceUtils.escapeHtml(path)}</p>`;
+  }
+
+  function openThoughtDetail(thoughtId) {
+    if (!thoughtDetailDialogEl || !thoughtDetailBodyEl) {
+      focusThoughtInTimeline(thoughtId);
+      return;
+    }
+    const item = findItemById(thoughtId);
+    if (!item) {
+      return;
+    }
+
+    const { title, body } = splitThoughtContent(item);
+    const related = getRelatedForItem(item);
+    const relatedHtml = related.length
+      ? `<section class="thought-detail-section">
+          <h4 class="thought-detail-section-title">相关想法</h4>
+          <ul class="thought-related-list">
+            ${related
+              .map(({ record, score }) => {
+                const label = MindTraceUtils.escapeHtml(
+                  getRelatedDisplayLabel(record)
+                );
+                const sc = formatRelationScore(score);
+                return `<li><button type="button" class="thought-related-link" data-open-detail-id="${MindTraceUtils.escapeHtml(record.id)}">${label}${sc ? ` <span class="thought-related-score">(${sc})</span>` : ''}</button></li>`;
+              })
+              .join('')}
+          </ul>
+        </section>`
+      : '';
+
+    const themesHtml =
+      (item.tags || []).length > 0
+        ? `<section class="thought-detail-section">
+            <h4 class="thought-detail-section-title">相关主题</h4>
+            <div class="tag-row">${(item.tags || [])
+              .map(
+                (t) =>
+                  `<span class="tag-pill">${MindTraceUtils.escapeHtml(t)}</span>`
+              )
+              .join('')}</div>
+          </section>`
+        : '';
+
+    const created = MindTraceUtils.formatDate(item.createdAt);
+    const updated = item.updatedAt
+      ? MindTraceUtils.formatDate(item.updatedAt)
+      : created;
+    const pageTitleEsc = MindTraceUtils.escapeHtml(item.pageTitle || '未知页面');
+    const pageUrlEsc = MindTraceUtils.escapeHtml(item.pageUrl || '#');
+
+    thoughtDetailBodyEl.innerHTML = `
+      <h3 class="thought-detail-headline">${MindTraceUtils.escapeHtml(title)}</h3>
+      ${item.selectedText ? `<blockquote class="thought-detail-quote">${MindTraceUtils.escapeHtml(item.selectedText)}</blockquote>` : ''}
+      ${body ? `<div class="thought-detail-note">${MindTraceUtils.escapeHtml(body).replace(/\n/g, '<br>')}</div>` : ''}
+      ${buildThoughtTagsHtml(item)}
+      ${themesHtml}
+      ${relatedHtml}
+      <section class="thought-detail-section">
+        <h4 class="thought-detail-section-title">来源</h4>
+        <p><a href="${pageUrlEsc}" target="_blank" rel="noopener noreferrer">${pageTitleEsc}</a></p>
+      </section>
+      ${buildCognitivePathHtml(item)}
+      <p class="thought-detail-meta">创建 ${MindTraceUtils.escapeHtml(created)}${item.updatedAt ? ` · 编辑 ${MindTraceUtils.escapeHtml(updated)}` : ''}</p>
+    `;
+
+    thoughtDetailBodyEl.querySelectorAll('[data-open-detail-id]').forEach(
+      (btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-open-detail-id');
+          if (id) {
+            openThoughtDetail(id);
+          }
+        });
+      }
+    );
+
+    if (typeof thoughtDetailDialogEl.showModal === 'function') {
+      thoughtDetailDialogEl.showModal();
+    } else {
+      thoughtDetailDialogEl.setAttribute('open', '');
+    }
+  }
+
+  function setupThoughtDetailDialog() {
+    if (!thoughtDetailDialogEl) {
+      return;
+    }
+    const close = () => {
+      if (typeof thoughtDetailDialogEl.close === 'function') {
+        thoughtDetailDialogEl.close();
+      } else {
+        thoughtDetailDialogEl.removeAttribute('open');
+      }
+    };
+    if (thoughtDetailCloseEl) {
+      thoughtDetailCloseEl.addEventListener('click', close);
+    }
+    if (thoughtDetailDismissEl) {
+      thoughtDetailDismissEl.addEventListener('click', close);
+    }
   }
 
   function revokeCachedImageUrls() {
@@ -1194,16 +2009,28 @@
     imageObjectUrlCache.clear();
   }
 
-  function buildEvidenceShellHtml(item) {
+  function shouldShowUserEvidence(item) {
     const ids = Array.isArray(item.images) ? item.images.filter(Boolean) : [];
-    if (!ids.length) {
+    const preview = (item.previewImageUrl || '').trim();
+    if (item.userEvidence === true) {
+      return ids.length > 0 || !!preview;
+    }
+    return ids.length > 0;
+  }
+
+  function buildEvidenceShellHtml(item) {
+    if (!shouldShowUserEvidence(item)) {
       return '';
     }
+    const ids = Array.isArray(item.images) ? item.images.filter(Boolean) : [];
     const extra =
       ids.length > MAX_EVIDENCE_DISPLAY
         ? `<span class="thought-evidence-more">+${ids.length - MAX_EVIDENCE_DISPLAY}</span>`
         : '';
-    return `<div class="thought-evidence" data-thought-id="${MindTraceUtils.escapeHtml(item.id)}" aria-label="思维证据">${extra}</div>`;
+    return `<div class="thought-evidence" data-thought-id="${MindTraceUtils.escapeHtml(item.id)}" aria-label="灵感现场">
+        <span class="thought-evidence-label">灵感现场</span>
+        ${extra}
+      </div>`;
   }
 
   /**
@@ -1211,44 +2038,81 @@
    * @param {InspirationRecord} item
    */
   async function hydrateEvidenceThumbs(container, item) {
-    if (!container || typeof MindTraceImageStorage === 'undefined') {
+    if (!container) {
+      return;
+    }
+
+    if (!shouldShowUserEvidence(item)) {
+      container.remove();
       return;
     }
 
     const ids = (item.images || []).slice(0, MAX_EVIDENCE_DISPLAY);
-    if (!ids.length) {
-      return;
-    }
-
-    await MindTraceImageStorage.migrateIfNeeded();
-    const urlMap = await MindTraceImageStorage.getObjectUrlsBatch(ids);
-
     const moreEl = container.querySelector('.thought-evidence-more');
+    const labelEl = container.querySelector('.thought-evidence-label');
     container.innerHTML = '';
+    if (labelEl) {
+      container.appendChild(labelEl);
+    }
     if (moreEl) {
       container.appendChild(moreEl);
     }
 
-    ids.forEach((imageId) => {
-      const url = urlMap[imageId];
-      if (!url) {
-        return;
+    if (ids.length && typeof MindTraceImageStorage !== 'undefined') {
+      await MindTraceImageStorage.migrateIfNeeded();
+      const urlMap = await MindTraceImageStorage.getObjectUrlsBatch(ids);
+      ids.forEach((imageId) => {
+        const url = urlMap[imageId];
+        if (!url) {
+          return;
+        }
+        imageObjectUrlCache.add(url);
+        appendEvidenceThumb(container, url, moreEl);
+      });
+    }
+
+    if (!container.querySelector('.thought-evidence-thumb')) {
+      const fallbackUrl = (item.previewImageUrl || '').trim();
+      if (item.userEvidence === true && fallbackUrl) {
+        appendEvidenceThumb(container, fallbackUrl, moreEl, { remote: true });
       }
-      imageObjectUrlCache.add(url);
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'thought-evidence-thumb';
-      btn.dataset.fullUrl = url;
-      btn.setAttribute('aria-label', '放大查看思维证据');
-      const img = document.createElement('img');
-      img.src = url;
-      img.alt = '思维证据';
-      img.loading = 'lazy';
-      btn.appendChild(img);
-      container.insertBefore(btn, moreEl || null);
-    });
+    }
+
+    if (!container.querySelector('.thought-evidence-thumb')) {
+      container.remove();
+      return;
+    }
 
     bindEvidenceThumbClicks(container);
+  }
+
+  /**
+   * @param {HTMLElement} container
+   * @param {string} url
+   * @param {Element|null} moreEl
+   * @param {{ remote?: boolean }} [options]
+   */
+  function appendEvidenceThumb(container, url, moreEl, options) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'thought-evidence-thumb';
+    btn.dataset.fullUrl = url;
+    if (options && options.remote) {
+      btn.dataset.remotePreview = '1';
+    }
+    btn.setAttribute('aria-label', '放大查看思维证据');
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = '页面预览';
+    img.loading = 'lazy';
+    img.addEventListener('error', () => {
+      btn.remove();
+      if (!container.querySelector('.thought-evidence-thumb')) {
+        container.remove();
+      }
+    });
+    btn.appendChild(img);
+    container.insertBefore(btn, moreEl || null);
   }
 
   function bindEvidenceThumbClicks(container) {
@@ -1260,29 +2124,52 @@
       btn.addEventListener('click', () => {
         const url = btn.dataset.fullUrl;
         if (url) {
-          openEvidenceLightbox(url);
+          openEvidenceLightbox(url, btn);
         }
       });
     });
   }
 
-  function openEvidenceLightbox(url) {
+  /**
+   * @param {string} url
+   * @param {HTMLElement} [triggerEl]
+   */
+  function openEvidenceLightbox(url, triggerEl) {
     if (!evidenceLightboxEl || !evidenceLightboxImgEl) {
       window.open(url, '_blank');
       return;
     }
+    evidenceLightboxLastTriggerEl = triggerEl || null;
     evidenceLightboxImgEl.src = url;
     evidenceLightboxEl.hidden = false;
     evidenceLightboxEl.setAttribute('aria-hidden', 'false');
+    const closeBtn = evidenceLightboxEl.querySelector('.evidence-lightbox-close');
+    if (closeBtn) {
+      closeBtn.focus();
+    }
   }
 
   function closeEvidenceLightbox() {
     if (!evidenceLightboxEl || !evidenceLightboxImgEl) {
       return;
     }
+    const activeEl =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    if (activeEl && evidenceLightboxEl.contains(activeEl)) {
+      activeEl.blur();
+    }
     evidenceLightboxEl.hidden = true;
     evidenceLightboxEl.setAttribute('aria-hidden', 'true');
     evidenceLightboxImgEl.removeAttribute('src');
+    if (
+      evidenceLightboxLastTriggerEl &&
+      document.contains(evidenceLightboxLastTriggerEl)
+    ) {
+      evidenceLightboxLastTriggerEl.focus();
+    }
+    evidenceLightboxLastTriggerEl = null;
   }
 
   function setupEvidenceLightbox() {
@@ -1358,6 +2245,7 @@
     const idEscaped = MindTraceUtils.escapeHtml(item.id);
     const chipsHtml = buildChipsHtml(pageUrl, pageTitle);
     const evidenceHtml = buildEvidenceShellHtml(item);
+    const tagsHtml = buildThoughtTagsHtml(item);
     const relatedHtml = buildRelatedThoughtsHtml(item);
 
     piece.innerHTML = `
@@ -1371,12 +2259,14 @@
         <div class="timeline-card-menu">
           <button type="button" class="btn-menu" aria-label="更多操作" aria-expanded="false">···</button>
           <div class="menu-dropdown">
+            <button type="button" data-detail-id="${idEscaped}">认知详情</button>
             <button type="button" data-edit-id="${idEscaped}">编辑思考</button>
             <button type="button" data-remove-id="${idEscaped}">移除这条思考</button>
           </div>
         </div>
         ${titleHtml}
         ${bodyHtml}
+        ${tagsHtml}
         ${evidenceHtml}
         ${chipsHtml}
         <p class="thought-origin">来源：<a href="${pageUrlEsc}" target="_blank" rel="noopener noreferrer">${pageTitleEsc}</a></p>
@@ -1386,6 +2276,15 @@
 
     bindCardMenu(piece, item);
     bindExpandButtons(piece);
+    piece.querySelectorAll('[data-open-detail-id]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-open-detail-id');
+        if (id) {
+          openThoughtDetail(id);
+        }
+      });
+    });
     queueEvidenceHydrate(piece, item);
 
     return piece;
@@ -1642,7 +2541,7 @@
           refreshCardReadView(piece, updated);
         });
       }
-      renderTodayCard(allItems);
+      await renderTodayCard(allItems);
       if (currentRecallId === id) {
         renderWhisper(allItems, false);
       }
@@ -1659,6 +2558,7 @@
     const dropdown = piece.querySelector('.menu-dropdown');
     const removeBtn = piece.querySelector('[data-remove-id]');
     const editBtn = piece.querySelector('[data-edit-id]');
+    const detailBtn = piece.querySelector('[data-detail-id]');
 
     if (!menuBtn || !dropdown) {
       return;
@@ -1670,6 +2570,18 @@
       const open = dropdown.classList.toggle('is-open');
       menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
+
+    if (detailBtn) {
+      detailBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.classList.remove('is-open');
+        menuBtn.setAttribute('aria-expanded', 'false');
+        const id = detailBtn.getAttribute('data-detail-id');
+        if (id) {
+          openThoughtDetail(id);
+        }
+      });
+    }
 
     if (editBtn) {
       editBtn.addEventListener('click', (e) => {

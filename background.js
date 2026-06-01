@@ -5,11 +5,18 @@
 
 'use strict';
 
+importScripts('services/preview.service.js');
+
 /** @type {readonly string[]} */
 const CONTENT_SCRIPT_FILES = [
   'utils.js',
   'services/garden.service.js',
   'services/keyword.service.js',
+  'services/similarity.service.js',
+  'services/vector.service.js',
+  'services/tag.service.js',
+  'services/related.service.js',
+  'services/relation.service.js',
   'services/image-storage.service.js',
   'storage.js',
   'content.js',
@@ -95,6 +102,24 @@ chrome.runtime.onStartup.addListener(() => {
   setupContextMenus();
 });
 
+chrome.commands.onCommand.addListener(async (command) => {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab || tab.id == null) {
+    return;
+  }
+
+  const injected = await injectContentScripts(tab.id);
+  if (!injected.ok) {
+    return;
+  }
+
+  if (command === 'capture-selection') {
+    await sendToTab(tab.id, { type: 'mindtrace-open-selection' });
+  } else if (command === 'quick-note') {
+    await sendToTab(tab.id, { type: 'mindtrace-open-quick-note' });
+  }
+});
+
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== CONTEXT_MENU_IMAGE_ID || !tab || !tab.id) {
     return;
@@ -121,6 +146,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'inject-content') {
     const tabId = message.tabId;
     injectContentScripts(tabId).then(sendResponse);
+    return true;
+  }
+
+  if (message.type === 'mindtrace-fetch-page-preview') {
+    const pageUrl = message.pageUrl;
+    if (!pageUrl || typeof MindTracePreviewService === 'undefined') {
+      sendResponse({ ok: false, reason: 'invalid' });
+      return false;
+    }
+
+    MindTracePreviewService.fetchPagePreviewUrl(pageUrl)
+      .then((previewImageUrl) => {
+        sendResponse({
+          ok: Boolean(previewImageUrl),
+          previewImageUrl: previewImageUrl || '',
+        });
+      })
+      .catch((err) => {
+        console.warn('[MindTrace] fetch page preview failed:', err);
+        sendResponse({ ok: false, reason: 'fetch_failed' });
+      });
     return true;
   }
 

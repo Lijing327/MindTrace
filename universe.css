@@ -1,0 +1,541 @@
+/* MindTrace — 思维宇宙静态设计稿（像素向还原） */
+
+:root {
+  --u-bg-deep: #030712;
+  --u-bg-mid: #0a1838;
+  --u-bg-high: #112450;
+  --u-text: #f4f7ff;
+  --u-muted: #94a3c4;
+  --u-border: rgba(150, 175, 255, 0.22);
+  --u-panel: rgba(10, 22, 55, 0.88);
+  --u-accent: #7c9cff;
+  --u-hub: #8b7cf8;
+  --u-sidebar-w: 280px;
+  --u-detail-w: 360px;
+  --u-header-h: 72px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+.universe-body {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: var(--u-bg-deep);
+  color: var(--u-text);
+  overflow: hidden;
+}
+
+.universe-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 640px;
+}
+
+/* —— 顶栏 —— */
+.universe-header {
+  flex-shrink: 0;
+  height: var(--u-header-h);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--u-border);
+  background: rgba(5, 11, 31, 0.95);
+}
+
+.universe-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.universe-brand-icon {
+  font-size: 22px;
+  color: var(--u-accent);
+  text-shadow: 0 0 12px rgba(124, 156, 255, 0.8);
+}
+
+.universe-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.universe-sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--u-muted);
+}
+
+/* —— 三栏 —— */
+.universe-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: var(--u-sidebar-w) 1fr var(--u-detail-w);
+  min-height: 0;
+}
+
+/* —— 左侧主题列表 —— */
+.universe-sidebar {
+  padding: 20px 16px;
+  border-right: 1px solid var(--u-border);
+  background: var(--u-panel);
+  overflow-y: auto;
+}
+
+.universe-sidebar-title {
+  margin: 0 0 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--u-muted);
+}
+
+.theme-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.theme-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--u-text);
+  cursor: default;
+  border: 1px solid transparent;
+}
+
+.theme-list-item.is-active {
+  background: rgba(60, 90, 180, 0.25);
+  border-color: rgba(140, 170, 255, 0.35);
+  box-shadow: 0 0 20px rgba(100, 140, 255, 0.15);
+}
+
+.theme-list-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.theme-list-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--u-muted);
+}
+
+/* —— 中间画布 —— */
+.universe-canvas-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  background: radial-gradient(
+    ellipse 120% 100% at 50% 45%,
+    var(--u-bg-mid) 0%,
+    var(--u-bg-deep) 55%,
+    #020508 100%
+  );
+}
+
+.universe-metrics {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 10px 16px;
+  z-index: 4;
+}
+
+.metric {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--u-border);
+  background: rgba(14, 32, 78, 0.75);
+}
+
+.metric-val {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.metric-lbl {
+  font-size: 11px;
+  color: var(--u-muted);
+}
+
+.universe-stage {
+  position: relative;
+  flex: 1;
+  min-height: 480px;
+  overflow: hidden;
+}
+
+/* 背景层 */
+.bg-nebula,
+.bg-glow-spots,
+.bg-stars,
+.bg-dust,
+.bg-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bg-nebula {
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 55% 45% at 50% 48%, rgba(70, 100, 200, 0.22) 0%, transparent 62%),
+    radial-gradient(ellipse 35% 30% at 68% 32%, rgba(50, 160, 200, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 35% at 28% 62%, rgba(100, 70, 200, 0.14) 0%, transparent 58%);
+}
+
+.bg-glow-spots {
+  z-index: 0;
+  background:
+    radial-gradient(circle 120px at 22% 28%, rgba(90, 130, 255, 0.18) 0%, transparent 70%),
+    radial-gradient(circle 90px at 78% 68%, rgba(60, 200, 220, 0.12) 0%, transparent 70%),
+    radial-gradient(circle 160px at 50% 50%, rgba(120, 100, 255, 0.08) 0%, transparent 75%);
+}
+
+.bg-stars {
+  z-index: 1;
+  opacity: 0.85;
+  background-image:
+    radial-gradient(1px 1px at 10% 15%, rgba(255, 255, 255, 0.55) 0%, transparent 100%),
+    radial-gradient(1px 1px at 85% 20%, rgba(220, 235, 255, 0.45) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 42% 8%, rgba(255, 255, 255, 0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 72% 75%, rgba(255, 255, 255, 0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 18% 70%, rgba(200, 220, 255, 0.35) 0%, transparent 100%),
+    radial-gradient(2px 2px at 55% 42%, rgba(180, 210, 255, 0.35) 0%, transparent 100%),
+    radial-gradient(1px 1px at 92% 45%, rgba(255, 255, 255, 0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 5% 88%, rgba(255, 255, 255, 0.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 38% 92%, rgba(230, 240, 255, 0.32) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 62% 18%, rgba(255, 250, 240, 0.35) 0%, transparent 100%);
+}
+
+.bg-dust {
+  z-index: 1;
+  opacity: 0.5;
+  mix-blend-mode: screen;
+  background-image:
+    radial-gradient(1.5px 1.5px at 25% 35%, rgba(180, 210, 255, 0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 70% 40%, rgba(140, 200, 255, 0.3) 0%, transparent 100%);
+}
+
+.bg-vignette {
+  z-index: 2;
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 50%, transparent 40%, rgba(2, 5, 14, 0.65) 100%);
+}
+
+/* SVG 连线 */
+.universe-links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  overflow: visible;
+}
+
+.universe-links path {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.universe-links .link-hub {
+  stroke: url(#link-grad-hub);
+  stroke-width: 2;
+  filter: url(#link-glow);
+  opacity: 0.85;
+}
+
+.universe-links .link-sub {
+  stroke: url(#link-grad-sub);
+  stroke-width: 1.2;
+  filter: url(#link-glow);
+  opacity: 0.55;
+}
+
+/* 节点层 */
+.universe-nodes {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+}
+
+.node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+/* 中心恒星 */
+.node--hub .node-sphere {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #fff;
+  background: radial-gradient(
+    circle at 32% 28%,
+    rgba(200, 190, 255, 0.95) 0%,
+    rgba(120, 90, 220, 0.9) 45%,
+    rgba(40, 30, 100, 0.95) 100%
+  );
+  border: 1px solid rgba(200, 180, 255, 0.55);
+  box-shadow:
+    0 0 30px rgba(140, 120, 255, 0.65),
+    0 0 60px rgba(100, 80, 220, 0.45),
+    0 0 100px rgba(80, 60, 180, 0.25),
+    inset 0 0 20px rgba(255, 255, 255, 0.15);
+}
+
+.node--hub .node-halo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 160px;
+  height: 160px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(130, 110, 255, 0.35) 0%, transparent 70%);
+  z-index: -1;
+}
+
+/* 主题星球 */
+.node--theme .node-sphere {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #fff;
+  border: 1px solid rgba(160, 200, 255, 0.45);
+  box-shadow:
+    0 0 18px rgba(80, 140, 255, 0.5),
+    0 0 36px rgba(60, 100, 200, 0.3),
+    inset 0 0 12px rgba(255, 255, 255, 0.12);
+}
+
+.node--theme .node-halo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 72px;
+  height: 72px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  z-index: -1;
+  opacity: 0.7;
+}
+
+.node--theme[data-hue="violet"] .node-sphere {
+  background: radial-gradient(circle at 30% 25%, #b8a8ff 0%, #6b4fd4 50%, #2a1f5c 100%);
+}
+.node--theme[data-hue="violet"] .node-halo {
+  background: radial-gradient(circle, rgba(150, 120, 255, 0.4) 0%, transparent 70%);
+}
+
+.node--theme[data-hue="cyan"] .node-sphere {
+  background: radial-gradient(circle at 30% 25%, #7ee8ff 0%, #2a9db8 50%, #0d3d4d 100%);
+}
+.node--theme[data-hue="cyan"] .node-halo {
+  background: radial-gradient(circle, rgba(80, 200, 255, 0.35) 0%, transparent 70%);
+}
+
+.node--theme[data-hue="gold"] .node-sphere {
+  background: radial-gradient(circle at 30% 25%, #ffe08a 0%, #c9a227 50%, #5c4a10 100%);
+}
+.node--theme[data-hue="gold"] .node-halo {
+  background: radial-gradient(circle, rgba(255, 200, 80, 0.35) 0%, transparent 70%);
+}
+
+.node--theme[data-hue="green"] .node-sphere {
+  background: radial-gradient(circle at 30% 25%, #8af0c4 0%, #2a9d6a 50%, #0d3d2a 100%);
+}
+.node--theme[data-hue="green"] .node-halo {
+  background: radial-gradient(circle, rgba(80, 220, 160, 0.35) 0%, transparent 70%);
+}
+
+.node--theme[data-hue="blue"] .node-sphere {
+  background: radial-gradient(circle at 30% 25%, #9ec5ff 0%, #3a6bc9 50%, #152a50 100%);
+}
+.node--theme[data-hue="blue"] .node-halo {
+  background: radial-gradient(circle, rgba(100, 160, 255, 0.35) 0%, transparent 70%);
+}
+
+.node--theme[data-hue="pink"] .node-sphere {
+  background: radial-gradient(circle at 30% 25%, #ffb8e8 0%, #c94a9d 50%, #4a1535 100%);
+}
+.node--theme[data-hue="pink"] .node-halo {
+  background: radial-gradient(circle, rgba(255, 120, 200, 0.35) 0%, transparent 70%);
+}
+
+/* 思考胶囊 */
+.node--thought .node-capsule {
+  display: inline-block;
+  max-width: 200px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: rgba(230, 240, 255, 0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: rgba(8, 18, 42, 0.72);
+  border: 1px solid rgba(120, 160, 255, 0.35);
+  border-radius: 999px;
+  box-shadow:
+    0 0 12px rgba(80, 120, 255, 0.25),
+    0 0 24px rgba(60, 90, 180, 0.15),
+    inset 0 0 8px rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(4px);
+}
+
+.node--thought .node-capsule-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100%;
+  height: 140%;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: radial-gradient(ellipse, rgba(100, 140, 255, 0.2) 0%, transparent 70%);
+  z-index: -1;
+}
+
+/* —— 右侧详情 —— */
+.universe-detail {
+  padding: 24px 20px;
+  border-left: 1px solid var(--u-border);
+  background: var(--u-panel);
+  overflow-y: auto;
+}
+
+.detail-tag {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: var(--u-muted);
+  letter-spacing: 0.08em;
+}
+
+.detail-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.detail-badge {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 2px 10px;
+  font-size: 11px;
+  color: var(--u-muted);
+  border: 1px solid var(--u-border);
+  border-radius: 999px;
+}
+
+.detail-stats {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--u-muted);
+}
+
+.detail-desc {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(220, 230, 255, 0.85);
+}
+
+.detail-section {
+  margin-top: 22px;
+}
+
+.detail-section-title {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--u-muted);
+}
+
+.detail-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.detail-kw {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+  border: 1px solid var(--u-border);
+  background: rgba(30, 50, 100, 0.5);
+  color: var(--u-text);
+}
+
+.detail-related,
+.detail-thoughts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.detail-related li,
+.detail-thoughts li {
+  padding: 8px 0;
+  font-size: 13px;
+  color: rgba(200, 215, 255, 0.9);
+  border-bottom: 1px solid rgba(100, 120, 180, 0.15);
+}
+
+.detail-related li:last-child,
+.detail-thoughts li:last-child {
+  border-bottom: none;
+}
+
+@media (max-width: 1100px) {
+  .universe-grid {
+    grid-template-columns: 240px 1fr 300px;
+  }
+}

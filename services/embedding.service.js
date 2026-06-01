@@ -17,6 +17,9 @@ const MindTraceEmbeddingService = (function () {
   /** @type {Promise<void>|null} */
   let readyPromise = null;
 
+  /** @type {{ resolve: (value?: void) => void, reject: (reason?: unknown) => void } | null} */
+  let readyDeferred = null;
+
   /** @type {Map<string, number[]>} */
   const memoryCache = new Map();
 
@@ -109,8 +112,9 @@ const MindTraceEmbeddingService = (function () {
     pendingRequests.forEach(({ reject }) => reject(error));
     pendingRequests.clear();
     modelLoading = false;
-    if (readyPromise && readyPromise._reject) {
-      readyPromise._reject(error);
+    if (readyDeferred) {
+      readyDeferred.reject(error);
+      readyDeferred = null;
     }
     readyPromise = null;
   }
@@ -123,8 +127,9 @@ const MindTraceEmbeddingService = (function () {
       workerReady = true;
       modelLoading = false;
       setStatus('ready');
-      if (readyPromise && readyPromise._resolve) {
-        readyPromise._resolve();
+      if (readyDeferred) {
+        readyDeferred.resolve();
+        readyDeferred = null;
       }
       return;
     }
@@ -134,8 +139,9 @@ const MindTraceEmbeddingService = (function () {
         console.error('[MindTrace] embedding model error:', message);
         setStatus('error');
         modelLoading = false;
-        if (readyPromise && readyPromise._reject) {
-          readyPromise._reject(new Error(message || 'Model load failed'));
+        if (readyDeferred) {
+          readyDeferred.reject(new Error(message || 'Model load failed'));
+          readyDeferred = null;
         }
         readyPromise = null;
         return;
@@ -173,10 +179,13 @@ const MindTraceEmbeddingService = (function () {
     modelLoading = true;
     setStatus('loading');
 
+    let resolveReady;
+    let rejectReady;
     readyPromise = new Promise((resolve, reject) => {
-      readyPromise._resolve = resolve;
-      readyPromise._reject = reject;
+      resolveReady = resolve;
+      rejectReady = reject;
     });
+    readyDeferred = { resolve: resolveReady, reject: rejectReady };
 
     ensureModelHostPermissions()
       .then((granted) => {
@@ -188,8 +197,9 @@ const MindTraceEmbeddingService = (function () {
       .catch((err) => {
         modelLoading = false;
         setStatus('error');
-        if (readyPromise && readyPromise._reject) {
-          readyPromise._reject(err);
+        if (readyDeferred) {
+          readyDeferred.reject(err);
+          readyDeferred = null;
         }
         readyPromise = null;
       });

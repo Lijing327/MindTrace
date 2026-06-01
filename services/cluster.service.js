@@ -62,8 +62,89 @@ const MindTraceClusterService = (function () {
     return idToCluster;
   }
 
+  const THEME_STOPWORDS = new Set([
+    '的', '了', '是', '在', '我', '有', '和', '就', '不', '人', '都', '一',
+    '上', '也', '很', '到', '说', '要', '去', '你', '会', '着', '没有', '看',
+    '好', '自己', '这', '那', '什么', '怎么', '可以', '这个', '那个', '已经',
+    '因为', '所以', '如果', '但是', '或者', '以及', '还有', '就是', '而且',
+  ]);
+
   /**
-   * 未来：基于 embedding 的主题命名聚类
+   * @param {InspirationRecord[]} members
+   * @returns {string}
+   */
+  function labelCluster(members) {
+    const freq = new Map();
+    (members || []).forEach((record) => {
+      const text = [record.note, record.selectedText, record.pageTitle]
+        .filter(Boolean)
+        .join('\n');
+      if (typeof MindTraceKeywordService !== 'undefined') {
+        MindTraceKeywordService.extractKeywords(text).forEach((kw) => {
+          if (kw && !THEME_STOPWORDS.has(kw)) {
+            freq.set(kw, (freq.get(kw) || 0) + 1);
+          }
+        });
+      }
+      (record.keywords || []).forEach((kw) => {
+        if (kw && !THEME_STOPWORDS.has(kw)) {
+          freq.set(kw, (freq.get(kw) || 0) + 1);
+        }
+      });
+    });
+
+    const top = [...freq.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([word]) => word);
+
+    if (!top.length) {
+      const n = (members || []).length;
+      return n > 1 ? `主题星系 · ${n} 条` : '独立星点';
+    }
+    if (top.length === 1) {
+      return top[0];
+    }
+    return top.slice(0, 2).join(' · ');
+  }
+
+  /**
+   * @param {InspirationRecord[]} thoughts
+   * @param {Array<{ source: string, target: string }>} links
+   * @returns {Array<{ clusterId: string, theme: string, recordIds: string[], count: number }>}
+   */
+  function buildClusterMeta(thoughts, links) {
+    if (!Array.isArray(thoughts) || !thoughts.length) {
+      return [];
+    }
+
+    const clusterMap = assignClusters(thoughts, links);
+    const groups = new Map();
+
+    thoughts.forEach((t) => {
+      const cid = clusterMap.get(t.id) || 'cluster-0';
+      if (!groups.has(cid)) {
+        groups.set(cid, []);
+      }
+      groups.get(cid).push(t);
+    });
+
+    const meta = [];
+    groups.forEach((members, clusterId) => {
+      meta.push({
+        clusterId,
+        theme: labelCluster(members),
+        recordIds: members.map((m) => m.id),
+        count: members.length,
+      });
+    });
+
+    meta.sort((a, b) => b.count - a.count);
+    return meta;
+  }
+
+  /**
+   * 基于 embedding 连边的主题聚类（含可读主题名）
    * @param {InspirationRecord[]} records
    * @returns {Array<{ theme: string, recordIds: string[], clusterId: string }>}
    */
@@ -104,15 +185,24 @@ const MindTraceClusterService = (function () {
       groups.get(cid).push(r.id);
     });
 
-    return [...groups.entries()].map(([clusterId, recordIds]) => ({
-      clusterId,
-      theme: clusterId,
-      recordIds,
-    }));
+    const thoughtById = new Map(records.map((r) => [r.id, r]));
+
+    return [...groups.entries()].map(([clusterId, recordIds]) => {
+      const members = recordIds
+        .map((id) => thoughtById.get(id))
+        .filter(Boolean);
+      return {
+        clusterId,
+        theme: labelCluster(members),
+        recordIds,
+      };
+    });
   }
 
   return {
     assignClusters,
+    labelCluster,
+    buildClusterMeta,
     clusterByTheme,
   };
 })();

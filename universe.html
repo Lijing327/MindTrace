@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MindTrace — 思维宇宙（静态稿）</title>
+    <link rel="stylesheet" href="universe.css" />
+  </head>
+  <body class="universe-body">
+    <div class="universe-app">
+      <header class="universe-header">
+        <div class="universe-brand">
+          <span class="universe-brand-icon" aria-hidden="true">✦</span>
+          <div>
+            <h1 class="universe-title">思维宇宙</h1>
+            <p class="universe-sub">知识星系 · 静态设计稿</p>
+          </div>
+        </div>
+      </header>
+
+      <div class="universe-grid">
+        <!-- 左侧：主题列表 -->
+        <aside class="universe-sidebar" aria-label="主题星系">
+          <h2 class="universe-sidebar-title">主题星系</h2>
+          <ul class="theme-list" id="theme-list"></ul>
+        </aside>
+
+        <!-- 中间：静态宇宙图谱 -->
+        <main class="universe-canvas-wrap" aria-label="宇宙图谱">
+          <div class="universe-metrics">
+            <div class="metric"><span class="metric-val">8</span><span class="metric-lbl">思考节点</span></div>
+            <div class="metric"><span class="metric-val">6</span><span class="metric-lbl">主题星球</span></div>
+            <div class="metric"><span class="metric-val">14</span><span class="metric-lbl">能量连线</span></div>
+            <div class="metric"><span class="metric-val">1</span><span class="metric-lbl">中心恒星</span></div>
+          </div>
+
+          <div class="universe-stage" id="universe-stage">
+            <div class="bg-nebula" aria-hidden="true"></div>
+            <div class="bg-glow-spots" aria-hidden="true"></div>
+            <div class="bg-stars" aria-hidden="true"></div>
+            <div class="bg-dust" aria-hidden="true"></div>
+            <div class="bg-vignette" aria-hidden="true"></div>
+
+            <svg
+              class="universe-links"
+              id="universe-links"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <defs>
+                <linearGradient id="link-grad-hub" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="rgba(120, 160, 255, 0.15)" />
+                  <stop offset="45%" stop-color="rgba(160, 200, 255, 0.75)" />
+                  <stop offset="100%" stop-color="rgba(100, 180, 255, 0.35)" />
+                </linearGradient>
+                <linearGradient id="link-grad-sub" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="rgba(90, 140, 255, 0.1)" />
+                  <stop offset="50%" stop-color="rgba(130, 170, 255, 0.55)" />
+                  <stop offset="100%" stop-color="rgba(80, 120, 220, 0.2)" />
+                </linearGradient>
+                <filter id="link-glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="3" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+            </svg>
+
+            <div class="universe-nodes" id="universe-nodes"></div>
+          </div>
+        </main>
+
+        <!-- 右侧：主题详情 -->
+        <aside class="universe-detail" aria-label="主题详情">
+          <p class="detail-tag">思维宇宙</p>
+          <h2 class="detail-title" id="detail-title">AI 与产品</h2>
+          <span class="detail-badge">中心主题</span>
+          <p class="detail-stats" id="detail-stats">3 条思考 · 6 个关联主题</p>
+          <p class="detail-desc" id="detail-desc">
+            关于 AI 产品机会、差异化与验证路径的思考聚合，是你当前认知宇宙的核心恒星。
+          </p>
+
+          <section class="detail-section">
+            <h3 class="detail-section-title">关键词</h3>
+            <div class="detail-keywords" id="detail-keywords"></div>
+          </section>
+
+          <section class="detail-section">
+            <h3 class="detail-section-title">关联最强主题</h3>
+            <ul class="detail-related" id="detail-related"></ul>
+          </section>
+
+          <section class="detail-section">
+            <h3 class="detail-section-title">最近思考</h3>
+            <ul class="detail-thoughts" id="detail-thoughts"></ul>
+          </section>
+        </aside>
+      </div>
+    </div>
+
+    <script src="universe.js"></script>
+  </body>
+</html>

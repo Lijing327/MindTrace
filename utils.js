@@ -107,7 +107,8 @@ const MindTraceUtils = (function () {
    * @returns {InspirationRecord}
    */
   /**
-   * 认知主体（content）是否有效：必须有用户写下的一段想法
+   * 认知主体（content）是否有效：
+   * 允许「随想 / 原文 / 灵感现场图片」任一项存在
    * @param {InspirationRecord|Object} record
    * @returns {boolean}
    */
@@ -116,7 +117,10 @@ const MindTraceUtils = (function () {
       return false;
     }
     const note = (record.note || record.content || '').trim();
-    return note.length > 0;
+    const selectedText = (record.selectedText || '').trim();
+    const hasImages = Array.isArray(record.images) && record.images.length > 0;
+    const previewImageUrl = (record.previewImageUrl || '').trim();
+    return Boolean(note || selectedText || hasImages || previewImageUrl);
   }
 
   /**
@@ -133,12 +137,31 @@ const MindTraceUtils = (function () {
       typeof MindTraceGardenService !== 'undefined'
         ? MindTraceGardenService.DEFAULT_GARDEN_ID
         : 'garden-default';
+    const previewImageUrl =
+      typeof record.previewImageUrl === 'string'
+        ? record.previewImageUrl.trim()
+        : '';
+    const linkedThoughtIds = Array.isArray(record.linkedThoughtIds)
+      ? record.linkedThoughtIds.filter(Boolean)
+      : [];
+    const tags = Array.isArray(record.tags)
+      ? record.tags.filter(Boolean).map((t) => String(t).trim()).filter(Boolean)
+      : [];
+    const relatedIds = Array.isArray(record.relatedIds)
+      ? record.relatedIds.filter(Boolean)
+      : [];
+
     return {
       ...record,
       gardenId: record.gardenId || defaultGardenId,
       images,
       imageOCRText:
         typeof record.imageOCRText === 'string' ? record.imageOCRText : '',
+      previewImageUrl,
+      userEvidence: record.userEvidence === true,
+      linkedThoughtIds,
+      tags,
+      relatedIds,
     };
   }
 
@@ -157,6 +180,20 @@ const MindTraceUtils = (function () {
       createdAt: Date.now(),
       images: params.images || [],
       imageOCRText: params.imageOCRText || '',
+      previewImageUrl: (params && params.previewImageUrl) || '',
+      userEvidence: Boolean(params && params.userEvidence),
+      linkedThoughtIds:
+        params && Array.isArray(params.linkedThoughtIds)
+          ? params.linkedThoughtIds.filter(Boolean)
+          : [],
+      tags:
+        params && Array.isArray(params.tags)
+          ? params.tags.filter(Boolean)
+          : [],
+      relatedIds:
+        params && Array.isArray(params.relatedIds)
+          ? params.relatedIds.filter(Boolean)
+          : [],
     });
   }
 

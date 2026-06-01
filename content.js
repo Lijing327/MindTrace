@@ -15,17 +15,23 @@
   const MIN_SELECTION_LENGTH = 2;
   const TOAST_DURATION = 2500;
   const MAX_EVIDENCE_IMAGES = 5;
+  const PANEL_EDGE_GAP = 12;
 
   let currentSelectedText = '';
   /** @type {{ blob: Blob, previewUrl: string }[]} */
   let pendingEvidence = [];
-  /** @type {'selection'|'image'} */
+  /** @type {'selection'|'image'|'quick'} */
   let panelMode = 'selection';
+  /** @type {string|null} */
+  let pendingRelationRecordId = null;
 
   let rootEl = null;
   let triggerBtn = null;
   let panelEl = null;
   let toastEl = null;
+  let panelDragging = false;
+  let panelDragOffsetX = 0;
+  let panelDragOffsetY = 0;
 
   function init() {
     if (document.getElementById(ROOT_ID)) {
@@ -69,6 +75,10 @@
           pageTitle: message.pageTitle,
           pageUrl: message.pageUrl,
         });
+      } else if (message.type === 'mindtrace-open-selection') {
+        openSelectionFromCommand();
+      } else if (message.type === 'mindtrace-open-quick-note') {
+        openQuickNotePanel();
       }
     });
   }
@@ -104,7 +114,7 @@
         ></textarea>
         <div class="mt-evidence" data-ref="evidence-section">
           <label class="mt-label">灵感现场</label>
-          <p class="mt-evidence-hint">粘贴或拖入都可以，帮以后想起当时的情境</p>
+          <p class="mt-evidence-hint">粘贴、拖入或「截取当前画面」——只保存你主动添加的图，不会用网页分享图顶替</p>
           <div class="mt-evidence-preview" data-ref="evidence-preview" hidden></div>
           <div class="mt-evidence-actions">
             <button type="button" class="mt-btn-link" data-action="capture-moment" title="截取当前可见网页">
@@ -113,9 +123,18 @@
           </div>
         </div>
       </div>
-      <div class="mt-panel-footer">
+      <div class="mt-panel-footer" data-ref="panel-footer">
         <button type="button" class="mt-btn mt-btn-secondary" data-action="cancel">取消</button>
         <button type="button" class="mt-btn mt-btn-primary" data-action="save">保存</button>
+      </div>
+      <div class="mt-relation-step" data-ref="relation-step" hidden>
+        <p class="mt-relation-title">和这些思考有点像</p>
+        <p class="mt-relation-hint">勾选要标为关联的旧想法（可选）</p>
+        <div class="mt-relation-list" data-ref="relation-list"></div>
+        <div class="mt-relation-actions">
+          <button type="button" class="mt-btn mt-btn-secondary" data-action="relation-skip">跳过</button>
+          <button type="button" class="mt-btn mt-btn-primary" data-action="relation-confirm">确认关联</button>
+        </div>
       </div>
     `;
 
@@ -123,11 +142,20 @@
     panel.querySelector('[data-action="cancel"]').addEventListener('click', hidePanel);
     panel.querySelector('[data-action="save"]').addEventListener('click', onSaveClick);
     panel
+      .querySelector('[data-action="relation-skip"]')
+      .addEventListener('click', onRelationSkip);
+    panel
+      .querySelector('[data-action="relation-confirm"]')
+      .addEventListener('click', onRelationConfirm);
+    panel
       .querySelector('[data-action="new-garden"]')
       .addEventListener('click', onQuickCreateGardenClick);
     panel
       .querySelector('[data-action="capture-moment"]')
       .addEventListener('click', onCaptureMomentClick);
+    panel
+      .querySelector('.mt-panel-header')
+      .addEventListener('mousedown', onPanelHeaderMouseDown);
 
     const noteInput = panel.querySelector('[data-ref="note"]');
     noteInput.addEventListener('paste', onNotePaste);
@@ -140,13 +168,18 @@
 
   function bindDocumentEvents() {
     document.addEventListener('mouseup', onMouseUp, true);
+    document.addEventListener('mousemove', onMouseMove, true);
     document.addEventListener('mousedown', onMouseDown, true);
     document.addEventListener('keydown', onKeyDown, true);
     window.addEventListener('scroll', hideTriggerButton, { passive: true });
-    window.addEventListener('resize', hideTriggerButton, { passive: true });
+    window.addEventListener('resize', onWindowResize, { passive: true });
   }
 
   function onMouseUp(event) {
+    if (panelDragging) {
+      stopPanelDrag();
+      return;
+    }
     if (isInsideMindTraceUI(event.target)) {
       return;
     }
@@ -177,7 +210,88 @@
     if (!panelEl || panelEl.hidden) {
       return;
     }
+    if (panelEl.dataset.relationActive === '1') {
+      return;
+    }
     hidePanel();
+  }
+
+  function onMouseMove(event) {
+    if (!panelDragging || !panelEl) {
+      return;
+    }
+    event.preventDefault();
+    const left = event.clientX - panelDragOffsetX;
+    const top = event.clientY - panelDragOffsetY;
+    setPanelPosition(left, top);
+  }
+
+  function onWindowResize() {
+    hideTriggerButton();
+    if (!panelEl || panelEl.hidden) {
+      return;
+    }
+    const left = Number.parseFloat(panelEl.style.left || '0');
+    const top = Number.parseFloat(panelEl.style.top || '0');
+    if (!Number.isFinite(left) || !Number.isFinite(top)) {
+      applyDefaultPanelPosition();
+      return;
+    }
+    setPanelPosition(left, top);
+  }
+
+  function onPanelHeaderMouseDown(event) {
+    if (!panelEl || panelEl.hidden) {
+      return;
+    }
+    if (event.button !== 0) {
+      return;
+    }
+    const target = /** @type {Element} */ (event.target);
+    if (target && target.closest('.mt-panel-close')) {
+      return;
+    }
+    const rect = panelEl.getBoundingClientRect();
+    panelDragging = true;
+    panelDragOffsetX = event.clientX - rect.left;
+    panelDragOffsetY = event.clientY - rect.top;
+    panelEl.classList.add('is-dragging');
+    event.preventDefault();
+  }
+
+  function stopPanelDrag() {
+    panelDragging = false;
+    if (panelEl) {
+      panelEl.classList.remove('is-dragging');
+      panelEl.dataset.userMoved = '1';
+    }
+  }
+
+  function setPanelPosition(left, top) {
+    if (!panelEl) {
+      return;
+    }
+    const width = panelEl.offsetWidth || 400;
+    const height = panelEl.offsetHeight || 320;
+    const maxLeft = Math.max(PANEL_EDGE_GAP, window.innerWidth - width - PANEL_EDGE_GAP);
+    const maxTop = Math.max(PANEL_EDGE_GAP, window.innerHeight - height - PANEL_EDGE_GAP);
+    const clampedLeft = Math.min(Math.max(PANEL_EDGE_GAP, left), maxLeft);
+    const clampedTop = Math.min(Math.max(PANEL_EDGE_GAP, top), maxTop);
+
+    panelEl.style.left = `${clampedLeft}px`;
+    panelEl.style.top = `${clampedTop}px`;
+    panelEl.style.transform = 'none';
+  }
+
+  function applyDefaultPanelPosition() {
+    if (!panelEl) {
+      return;
+    }
+    const width = panelEl.offsetWidth || 400;
+    const left = Math.max(PANEL_EDGE_GAP, (window.innerWidth - width) / 2);
+    const top = Math.max(80, window.innerHeight * 0.12);
+    setPanelPosition(left, top);
+    delete panelEl.dataset.userMoved;
   }
 
   function onKeyDown(event) {
@@ -280,7 +394,24 @@
     const noteLabel = panelEl.querySelector('[data-ref="note-label"]');
     const noteInput = panelEl.querySelector('[data-ref="note"]');
 
-    if (mode === 'image') {
+    if (mode === 'quick') {
+      if (titleEl) {
+        titleEl.textContent = '空白速记';
+      }
+      if (subtitleEl) {
+        subtitleEl.textContent = '不必划词，记下此刻的想法';
+        subtitleEl.hidden = false;
+      }
+      if (quoteWrap) {
+        quoteWrap.hidden = true;
+      }
+      if (noteLabel) {
+        noteLabel.textContent = '随想';
+      }
+      if (noteInput) {
+        noteInput.placeholder = '你在想什么……';
+      }
+    } else if (mode === 'image') {
       if (titleEl) {
         titleEl.textContent = '留住这一瞬';
       }
@@ -317,13 +448,44 @@
     }
   }
 
+  function openSelectionFromCommand() {
+    const selection = window.getSelection();
+    const text = selection ? selection.toString().trim() : '';
+    if (text.length < MIN_SELECTION_LENGTH) {
+      showToast('请先在页面上选中至少 2 个字符');
+      return;
+    }
+    currentSelectedText = text;
+    hideTriggerButton();
+    openSelectionPanel();
+  }
+
+  function openQuickNotePanel() {
+    if (!panelEl) {
+      return;
+    }
+    hideTriggerButton();
+    setPanelMode('quick');
+    clearPendingEvidence();
+    panelEl.dataset.sourceImageUrl = '';
+    currentSelectedText = '';
+    const noteInput = panelEl.querySelector('[data-ref="note"]');
+    if (noteInput) {
+      noteInput.value = '';
+    }
+    hideRelationStep();
+    showPanel();
+  }
+
   function openSelectionPanel() {
     if (!panelEl) {
       return;
     }
 
     setPanelMode('selection');
+    hideRelationStep();
     clearPendingEvidence();
+    panelEl.dataset.sourceImageUrl = '';
 
     const quoteEl = panelEl.querySelector('[data-ref="quote"]');
     const noteInput = panelEl.querySelector('[data-ref="note"]');
@@ -349,11 +511,13 @@
 
     hideTriggerButton();
     setPanelMode('image');
+    hideRelationStep();
     clearPendingEvidence();
     currentSelectedText = '';
 
     panelEl.dataset.pageTitle = meta.pageTitle || document.title;
     panelEl.dataset.pageUrl = meta.pageUrl || window.location.href;
+    panelEl.dataset.sourceImageUrl = srcUrl || '';
 
     const noteInput = panelEl.querySelector('[data-ref="note"]');
     if (noteInput) {
@@ -429,8 +593,14 @@
 
   function showPanel() {
     populateGardenSelect();
-    panelEl.style.top = `${Math.max(80, window.innerHeight * 0.12)}px`;
     panelEl.hidden = false;
+    if (panelEl.dataset.userMoved === '1') {
+      const left = Number.parseFloat(panelEl.style.left || '0');
+      const top = Number.parseFloat(panelEl.style.top || '0');
+      setPanelPosition(left, top);
+    } else {
+      applyDefaultPanelPosition();
+    }
     requestAnimationFrame(() => {
       const noteInput = panelEl.querySelector('[data-ref="note"]');
       if (noteInput) {
@@ -442,8 +612,166 @@
   function hidePanel() {
     if (panelEl) {
       panelEl.hidden = true;
+      panelEl.dataset.relationActive = '';
     }
+    pendingRelationRecordId = null;
+    hideRelationStep();
     clearPendingEvidence();
+  }
+
+  function hideRelationStep() {
+    if (!panelEl) {
+      return;
+    }
+    const step = panelEl.querySelector('[data-ref="relation-step"]');
+    const body = panelEl.querySelector('.mt-panel-body');
+    const footer = panelEl.querySelector('[data-ref="panel-footer"]');
+    const header = panelEl.querySelector('.mt-panel-header');
+    if (step) {
+      step.hidden = true;
+    }
+    if (body) {
+      body.hidden = false;
+    }
+    if (footer) {
+      footer.hidden = false;
+    }
+    if (header) {
+      header.hidden = false;
+    }
+    panelEl.dataset.relationActive = '';
+  }
+
+  /**
+   * @param {InspirationRecord} savedRecord
+   */
+  async function showRelationPrompt(savedRecord) {
+    if (
+      !panelEl ||
+      typeof MindTraceRelationService === 'undefined' ||
+      !savedRecord ||
+      !savedRecord.id
+    ) {
+      hidePanel();
+      showToast('✓ 已保存到 MindTrace');
+      return;
+    }
+
+    const all = await MindTraceStorage.getAll(savedRecord.gardenId);
+    const others = all.filter((item) => item.id !== savedRecord.id);
+    const related = MindTraceRelationService.findRelatedThoughts(
+      savedRecord,
+      others
+    );
+
+    if (!related.length) {
+      hidePanel();
+      showToast('✓ 已保存到 MindTrace');
+      window.getSelection()?.removeAllRanges();
+      return;
+    }
+
+    pendingRelationRecordId = savedRecord.id;
+
+    const step = panelEl.querySelector('[data-ref="relation-step"]');
+    const listEl = panelEl.querySelector('[data-ref="relation-list"]');
+    const body = panelEl.querySelector('.mt-panel-body');
+    const footer = panelEl.querySelector('[data-ref="panel-footer"]');
+    const header = panelEl.querySelector('.mt-panel-header');
+
+    if (!step || !listEl) {
+      hidePanel();
+      showToast('✓ 已保存到 MindTrace');
+      return;
+    }
+
+    if (body) {
+      body.hidden = true;
+    }
+    if (footer) {
+      footer.hidden = true;
+    }
+    if (header) {
+      header.hidden = false;
+    }
+
+    listEl.innerHTML = related
+      .map(({ record, score, semantic }) => {
+        const label =
+          (record.note || '').trim().split('\n')[0] ||
+          (record.selectedText || '').trim() ||
+          record.pageTitle ||
+          '（未命名）';
+        const short =
+          label.length > 56 ? label.slice(0, 56) + '…' : label;
+        const meta = semantic
+          ? `语义 ${(score * 100).toFixed(0)}%`
+          : `关键词 ${score}`;
+        return `
+          <label class="mt-relation-item">
+            <input type="checkbox" value="${record.id}" />
+            <span class="mt-relation-item-text">${escapeRelationText(short)}</span>
+            <span class="mt-relation-item-meta">${meta}</span>
+          </label>
+        `;
+      })
+      .join('');
+
+    step.hidden = false;
+    panelEl.dataset.relationActive = '1';
+    panelEl.hidden = false;
+  }
+
+  /**
+   * @param {string} text
+   * @returns {string}
+   */
+  function escapeRelationText(text) {
+    if (typeof MindTraceUtils !== 'undefined') {
+      return MindTraceUtils.escapeHtml(text);
+    }
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function onRelationSkip() {
+    hidePanel();
+    showToast('✓ 已保存到 MindTrace');
+    window.getSelection()?.removeAllRanges();
+  }
+
+  async function onRelationConfirm() {
+    const recordId = pendingRelationRecordId;
+    if (!recordId || !panelEl) {
+      onRelationSkip();
+      return;
+    }
+
+    const checked = panelEl.querySelectorAll(
+      '[data-ref="relation-list"] input[type="checkbox"]:checked'
+    );
+    const linkedIds = [...checked].map((el) => el.value).filter(Boolean);
+
+    try {
+      if (linkedIds.length) {
+        await MindTraceStorage.updateById(recordId, {
+          linkedThoughtIds: linkedIds,
+        });
+      }
+      hidePanel();
+      showToast(
+        linkedIds.length
+          ? `✓ 已保存，并关联 ${linkedIds.length} 条思考`
+          : '✓ 已保存到 MindTrace'
+      );
+    } catch (err) {
+      console.warn('[MindTrace] link thoughts failed:', err);
+      hidePanel();
+      showToast('✓ 已保存（关联写入失败）');
+    }
+    window.getSelection()?.removeAllRanges();
   }
 
   /**
@@ -660,14 +988,6 @@
     const noteInput = panelEl.querySelector('[data-ref="note"]');
     const note = noteInput ? noteInput.value.trim() : '';
 
-    if (!note) {
-      showToast('写几个字再保存吧，以后才好找回来');
-      if (noteInput) {
-        noteInput.focus();
-      }
-      return;
-    }
-
     const pageTitle =
       panelMode === 'image' && panelEl.dataset.pageTitle
         ? panelEl.dataset.pageTitle
@@ -676,6 +996,8 @@
       panelMode === 'image' && panelEl.dataset.pageUrl
         ? panelEl.dataset.pageUrl
         : window.location.href;
+    const sourceImageUrl =
+      panelMode === 'image' ? (panelEl.dataset.sourceImageUrl || '').trim() : '';
 
     const gardenSelect = panelEl.querySelector('[data-ref="garden-select"]');
     const gardenId =
@@ -687,13 +1009,25 @@
       await MindTraceGardenService.setCurrentGardenId(gardenId);
     }
 
+    const blobs = pendingEvidence.map((item) => item.blob);
+
     const record = MindTraceUtils.buildRecord({
       selectedText: panelMode === 'selection' ? currentSelectedText : '',
       note,
       pageTitle,
       pageUrl,
       gardenId,
+      previewImageUrl: sourceImageUrl,
+      userEvidence: blobs.length > 0 || Boolean(sourceImageUrl),
     });
+
+    if (!MindTraceUtils.hasRequiredThought(record)) {
+      showToast('请至少保留原文、添加图片或写下一句随想');
+      if (noteInput) {
+        noteInput.focus();
+      }
+      return;
+    }
 
     const saveBtn = panelEl.querySelector('[data-action="save"]');
     if (saveBtn) {
@@ -701,17 +1035,17 @@
       saveBtn.textContent = '保存中…';
     }
 
-    const blobs = pendingEvidence.map((item) => item.blob);
-
     try {
-      await MindTraceStorage.save(record, { imageBlobs: blobs });
-      hidePanel();
-      showToast('✓ 已保存到 MindTrace');
-      window.getSelection()?.removeAllRanges();
+      const saved = await MindTraceStorage.save(record, { imageBlobs: blobs });
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '保存';
+      }
+      await showRelationPrompt(saved);
     } catch (err) {
       console.error('[MindTrace] 保存失败:', err);
       if (err && err.message === 'THOUGHT_CONTENT_REQUIRED') {
-        showToast('写几个字再保存吧');
+        showToast('请至少保留原文、添加图片或写下一句随想');
       } else {
         showToast('保存失败，请重试');
       }
