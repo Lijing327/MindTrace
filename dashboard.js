@@ -5,6 +5,26 @@
 (function () {
   'use strict';
 
+  function getDateLocale() {
+    if (typeof MindTraceI18n !== 'undefined' && MindTraceI18n.getDateLocale) {
+      return MindTraceI18n.getDateLocale();
+    }
+    if (typeof MindTraceUtils !== 'undefined' && MindTraceUtils.getDateLocale) {
+      return MindTraceUtils.getDateLocale();
+    }
+    return 'zh-CN';
+  }
+
+  const WEEKDAY_KEYS = [
+    'weekdaySun',
+    'weekdayMon',
+    'weekdayTue',
+    'weekdayWed',
+    'weekdayThu',
+    'weekdayFri',
+    'weekdaySat',
+  ];
+
   const PAGE_SIZE = 20;
   const COLLAPSE_THRESHOLD = 360;
   const MAX_EVIDENCE_DISPLAY = 3;
@@ -222,7 +242,7 @@
       return;
     }
     const now = new Date();
-    const text = now.toLocaleDateString('zh-CN', {
+    const text = now.toLocaleDateString(getDateLocale(), {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -272,6 +292,12 @@
   }
 
   async function init() {
+    if (typeof MindTraceI18n !== 'undefined') {
+      MindTraceI18n.applyPageI18n(document);
+    }
+    if (evidenceLightboxImgEl) {
+      evidenceLightboxImgEl.alt = getText('evidenceImageAlt');
+    }
     updateSearchKbdLabel();
     updateMastheadDate();
     setupSidebarNav();
@@ -330,9 +356,7 @@
 
     if (todayNewBtn) {
       todayNewBtn.addEventListener('click', () => {
-        alert(
-          '在任意网页划词保存，或按 Alt+Shift+N 打开空白速记，即可新增一条思考。'
-        );
+        alert(getText('newRecordHint'));
       });
     }
 
@@ -392,7 +416,7 @@
 
     if (mastheadLink) {
       mastheadLink.hidden = false;
-      mastheadLink.textContent = '联系作者';
+      mastheadLink.textContent = getText('contactAuthor');
     }
 
     const headline = MindTraceUtils.escapeHtml(MindTraceCreator.headline || '');
@@ -400,10 +424,10 @@
 
     const linksHtml = activeLinks
       .map((link) => {
-        const label = MindTraceUtils.escapeHtml(link.label || '联系');
+        const label = MindTraceUtils.escapeHtml(link.label || getText('contact'));
         if (link.type === 'copy') {
           const value = MindTraceUtils.escapeHtml(link.value || '');
-          const hint = MindTraceUtils.escapeHtml(link.hint || '已复制');
+          const hint = MindTraceUtils.escapeHtml(link.hint || getText('copied'));
           return `<button type="button" class="connect-chip connect-chip--copy" data-copy="${value}" data-copy-hint="${hint}">${label}</button>`;
         }
         let href = (link.href || '').trim();
@@ -428,7 +452,7 @@
     footerInner.querySelectorAll('.connect-chip--copy').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const text = btn.getAttribute('data-copy') || '';
-        const hint = btn.getAttribute('data-copy-hint') || '已复制';
+        const hint = btn.getAttribute('data-copy-hint') || getText('copied');
         try {
           await navigator.clipboard.writeText(text);
           showConnectToast(hint);
@@ -464,7 +488,7 @@
     MindTraceEmbeddingService.onStatusChange((next) => {
       if (next === 'loading') {
         embeddingStatusEl.hidden = false;
-        embeddingStatusEl.textContent = '正在唤醒语义模型，首次可能稍慢…';
+        embeddingStatusEl.textContent = getText('embeddingLoading');
         embeddingStatusEl.classList.add('is-loading');
       } else if (next === 'ready') {
         embeddingStatusEl.classList.remove('is-loading');
@@ -473,7 +497,7 @@
         }
       } else if (next === 'error') {
         embeddingStatusEl.hidden = false;
-        embeddingStatusEl.textContent = '语义模型暂不可用，将使用关键词关联';
+        embeddingStatusEl.textContent = getText('embeddingError');
         embeddingStatusEl.classList.remove('is-loading');
       }
     });
@@ -512,7 +536,7 @@
     }
 
     embeddingBackfillRunning = true;
-    setEmbeddingBackfillStatus('正在为历史思考建立语义索引…');
+    setEmbeddingBackfillStatus(getText('embeddingBackfill'));
 
     try {
       await MindTraceEmbeddingService.backfillMissing(
@@ -582,19 +606,19 @@
       mastheadGardenEmojiEl.textContent = '🌿';
     }
     if (mastheadGardenNameTextEl) {
-      mastheadGardenNameTextEl.textContent = '思维花园';
+      mastheadGardenNameTextEl.textContent = getText('mindGarden');
     }
     if (mastheadGardenDescEl) {
       mastheadGardenDescEl.textContent =
         (garden && garden.description) ||
-        '记录灵感，沉淀思考，让想法自然生长';
+        getText('gardenDesc');
     }
     if (cosmosLinkEl) {
       cosmosLinkEl.href = `graph.html?garden=${encodeURIComponent(currentGardenId)}`;
     }
     document.title = garden
       ? `MindTrace — ${garden.name}`
-      : 'MindTrace — 思维花园';
+      : getText('pageTitleDefault');
   }
 
   /**
@@ -634,7 +658,7 @@
             <span class="garden-card-icon" aria-hidden="true">${MindTraceUtils.escapeHtml(g.icon || '🌿')}</span>
             <span class="garden-card-body">
               <span class="garden-card-name">${MindTraceUtils.escapeHtml(g.name)}</span>
-              <span class="garden-card-meta">${n} 条思考</span>
+              <span class="garden-card-meta">${getText('thoughtCount', [n])}</span>
             </span>
             <span class="garden-card-actions">
               <button
@@ -644,18 +668,18 @@
                 data-garden-id="${MindTraceUtils.escapeHtml(g.id)}"
                 aria-haspopup="menu"
                 aria-expanded="${activeGardenMenuId === g.id ? 'true' : 'false'}"
-                title="花园操作"
+                title="${MindTraceUtils.escapeHtml(getText('gardenActions'))}"
               >⋯</button>
               <div
                 class="garden-card-menu${activeGardenMenuId === g.id ? ' is-open' : ''}"
                 role="menu"
                 data-garden-menu="${MindTraceUtils.escapeHtml(g.id)}"
               >
-                <button type="button" role="menuitem" data-garden-action="edit" data-garden-id="${MindTraceUtils.escapeHtml(g.id)}">编辑花园</button>
+                <button type="button" role="menuitem" data-garden-action="edit" data-garden-id="${MindTraceUtils.escapeHtml(g.id)}">${MindTraceUtils.escapeHtml(getText('editGarden'))}</button>
                 ${
                   g.id === MindTraceGardenService.DEFAULT_GARDEN_ID
                     ? ''
-                    : `<button type="button" role="menuitem" class="is-danger" data-garden-action="delete" data-garden-id="${MindTraceUtils.escapeHtml(g.id)}">删除花园</button>`
+                    : `<button type="button" role="menuitem" class="is-danger" data-garden-action="delete" data-garden-id="${MindTraceUtils.escapeHtml(g.id)}">${MindTraceUtils.escapeHtml(getText('deleteGarden'))}</button>`
                 }
               </div>
             </span>
@@ -700,10 +724,10 @@
     gardenDialogMode = 'create';
     editingGardenId = '';
     if (gardenDialogTitleEl) {
-      gardenDialogTitleEl.textContent = '创建花园';
+      gardenDialogTitleEl.textContent = getText('createGardenTitle');
     }
     if (gardenDialogSubmitEl) {
-      gardenDialogSubmitEl.textContent = '创建';
+      gardenDialogSubmitEl.textContent = getText('create');
     }
     if (gardenDialogNameEl) {
       gardenDialogNameEl.value = '';
@@ -746,7 +770,7 @@
       await switchToGarden(garden.id);
     } catch (err) {
       console.error('[MindTrace] 花园保存失败:', err);
-      alert('花园保存失败，请稍后再试');
+      alert(getText('gardenSaveFailed'));
     }
   }
 
@@ -818,10 +842,10 @@
     gardenDialogMode = 'edit';
     editingGardenId = garden.id;
     if (gardenDialogTitleEl) {
-      gardenDialogTitleEl.textContent = '编辑花园';
+      gardenDialogTitleEl.textContent = getText('editGarden');
     }
     if (gardenDialogSubmitEl) {
-      gardenDialogSubmitEl.textContent = '保存';
+      gardenDialogSubmitEl.textContent = getText('save');
     }
     if (gardenDialogNameEl) {
       gardenDialogNameEl.value = garden.name || '';
@@ -841,7 +865,7 @@
       return;
     }
     const ok = window.confirm(
-      `确定删除花园「${garden.name}」吗？\n其下思考将迁移到默认花园。`
+      getText('deleteGardenConfirm', [garden.name])
     );
     if (!ok) {
       return;
@@ -853,7 +877,7 @@
       await switchToGarden(nextId);
     } catch (err) {
       console.error('[MindTrace] 删除花园失败:', err);
-      alert('删除花园失败，请稍后再试');
+      alert(getText('deleteGardenFailed'));
     }
   }
 
@@ -891,28 +915,28 @@
   const OBSERVE_SLOTS = [
     {
       key: 'theme',
-      label: '高频主题',
+      labelKey: 'observeTheme',
       type: 'top-theme',
       tone: 'purple',
       icon: '🧠',
     },
     {
       key: 'time',
-      label: '思考时段',
+      labelKey: 'observeTimeSlot',
       type: null,
       tone: 'orange',
       icon: '💡',
     },
     {
       key: 'focus',
-      label: '持续关注',
+      labelKey: 'observeFocus',
       type: 'long-term-interest',
       tone: 'pink',
       icon: '🎯',
     },
     {
       key: 'trend',
-      label: '思考趋势',
+      labelKey: 'observeTrend',
       type: 'cognitive-evolution',
       tone: 'green',
       icon: '🌱',
@@ -926,7 +950,7 @@
   function splitInsightContent(content) {
     const raw = (content || '').trim();
     if (!raw) {
-      return { value: '—', hint: '记录更多思考后生成' };
+      return { value: getText('insightEmptyValue'), hint: getText('insightEmptyHint') };
     }
     const parts = raw.split(/[·•\n]/).map((p) => p.trim()).filter(Boolean);
     if (parts.length >= 2) {
@@ -961,12 +985,12 @@
       }
     });
     if (!peak) {
-      return { value: '—', hint: '记录后自动分析活跃时段' };
+      return { value: getText('insightEmptyValue'), hint: getText('thinkingTimeEmptyHint') };
     }
     const end = (peakH + 2) % 24;
     return {
-      value: `${peakH}点-${end}点`,
-      hint: '是你最活跃的思考时间',
+      value: getText('thinkingTimeRange', [peakH, end]),
+      hint: getText('thinkingTimeActiveHint'),
     };
   }
 
@@ -989,8 +1013,8 @@
     const timeSlot = computeThinkingTimeSlot(items || allItems);
 
     cognitionMirrorListEl.innerHTML = OBSERVE_SLOTS.map((slot) => {
-      let value = '—';
-      let hint = '记录更多思考后生成';
+      let value = getText('insightEmptyValue');
+      let hint = getText('insightEmptyHint');
 
       if (slot.key === 'time') {
         value = timeSlot.value;
@@ -1007,7 +1031,7 @@
       return `
         <article class="observe-stat-card observe-stat-card--${slot.tone}">
           <span class="observe-stat-icon" aria-hidden="true">${slot.icon}</span>
-          <h3 class="observe-stat-label">${MindTraceUtils.escapeHtml(slot.label)}</h3>
+          <h3 class="observe-stat-label">${MindTraceUtils.escapeHtml(getText(slot.labelKey))}</h3>
           <p class="observe-stat-value">${MindTraceUtils.escapeHtml(value)}</p>
           <p class="observe-stat-hint">${MindTraceUtils.escapeHtml(hint)}</p>
         </article>
@@ -1135,9 +1159,9 @@
     } catch (err) {
       console.error('[MindTrace] 加载失败:', err);
       todayContentEl.innerHTML =
-        '<p class="card-empty">暂时无法加载，请刷新页面</p>';
+        `<p class="card-empty">${MindTraceUtils.escapeHtml(getText('loadFailedRefresh'))}</p>`;
       timelineEl.innerHTML =
-        '<p class="stream-empty">加载失败，请刷新后重试</p>';
+        `<p class="stream-empty">${MindTraceUtils.escapeHtml(getText('timelineLoadFailed'))}</p>`;
     }
   }
 
@@ -1158,10 +1182,10 @@
       return '';
     }
     if (mode === 'semantic') {
-      return '按语义相似排序';
+      return getText('searchSemantic');
     }
     if (mode === 'hybrid') {
-      return '语义相似 + 关键词匹配';
+      return getText('searchHybrid');
     }
     return '';
   }
@@ -1230,7 +1254,7 @@
       .map((k) => `<span class="tag-pill">${MindTraceUtils.escapeHtml(k)}</span>`)
       .join('');
     return `
-      <p class="tag-label">你最近频繁想到：</p>
+      <p class="tag-label">${MindTraceUtils.escapeHtml(getText('recentKeywordsLabel'))}</p>
       <div class="tag-row">${pills}</div>
     `;
   }
@@ -1314,7 +1338,7 @@
     if (sel) {
       return sel.length > 64 ? sel.slice(0, 64) + '…' : sel;
     }
-    return record.pageTitle || '（未命名思考）';
+    return record.pageTitle || getText('unnamedThought');
   }
 
   /**
@@ -1333,7 +1357,7 @@
     const tokens = tokenizeForKeywords(
       [record.note, record.selectedText].filter(Boolean).join('\n')
     );
-    return tokens[0] || '思考';
+    return tokens[0] || getText('thought');
   }
 
   function renderPickupList(items) {
@@ -1343,7 +1367,7 @@
     const recent = (items || []).slice(0, 3);
     if (!recent.length) {
       pickupContentEl.innerHTML =
-        '<p class="card-empty">记录更多思考后，会在这里显示最近片段</p>';
+        `<p class="card-empty">${MindTraceUtils.escapeHtml(getText('pickupEmpty'))}</p>`;
       return;
     }
     pickupContentEl.innerHTML = `
@@ -1390,7 +1414,7 @@
           )
           .join('')}
       </div>`
-      : '<p class="card-empty">保存记录后会自动生成认知标签</p>';
+      : `<p class="card-empty">${MindTraceUtils.escapeHtml(getText('tagCloudEmpty'))}</p>`;
 
     let sourcesHtml = '';
     if (typeof MindTraceSourceService !== 'undefined') {
@@ -1400,7 +1424,7 @@
       ).slice(0, 6);
       sourcesHtml = groups.length
         ? `<div class="reading-sources-block">
-            <p class="tag-label">阅读来源</p>
+            <p class="tag-label">${MindTraceUtils.escapeHtml(getText('readingSources'))}</p>
             <ul class="reading-sources-list">
               ${groups
                 .map(
@@ -1408,7 +1432,7 @@
                 <li>
                   <button type="button" class="reading-source-item" data-source-filter="${MindTraceUtils.escapeHtml(g.title)}">
                     <span class="reading-source-title">${MindTraceUtils.escapeHtml(g.title)}</span>
-                    <span class="reading-source-count">${g.count} 条思考</span>
+                    <span class="reading-source-count">${MindTraceUtils.escapeHtml(getText('thoughtCount', [g.count]))}</span>
                   </button>
                 </li>`
                 )
@@ -1479,7 +1503,7 @@
 
     trajectoryWidgetEl.innerHTML = `
       <div class="trajectory-card-head">
-        <p class="trajectory-card-title">认知轨迹</p>
+        <p class="trajectory-card-title">${MindTraceUtils.escapeHtml(getText('trajectoryTitle'))}</p>
         <span class="trajectory-card-icon" aria-hidden="true">📈</span>
       </div>
       <svg class="trajectory-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
@@ -1492,13 +1516,13 @@
         </defs>
       </svg>
       <div class="trajectory-stats">
-        <div class="trajectory-stat"><span>累计记录</span><strong>${total}</strong></div>
-        <div class="trajectory-stat"><span>连续记录</span><strong>${streak} 天</strong></div>
+        <div class="trajectory-stat"><span>${MindTraceUtils.escapeHtml(getText('totalRecords'))}</span><strong>${total}</strong></div>
+        <div class="trajectory-stat"><span>${MindTraceUtils.escapeHtml(getText('streakRecords'))}</span><strong>${MindTraceUtils.escapeHtml(getText('streakDaysValue', [streak]))}</strong></div>
       </div>
-      <p class="trajectory-themes-label">最常出现主题</p>
+      <p class="trajectory-themes-label">${MindTraceUtils.escapeHtml(getText('topThemesLabel'))}</p>
       <p class="trajectory-themes">${MindTraceUtils.escapeHtml(themeText)}</p>
       <a href="#timeline-section" class="trajectory-link">
-        <span>查看完整统计</span><span aria-hidden="true">→</span>
+        <span>${MindTraceUtils.escapeHtml(getText('viewFullStats'))}</span><span aria-hidden="true">→</span>
       </a>
     `;
   }
@@ -1516,23 +1540,23 @@
       <div class="today-metrics">
         <div class="today-metric">
           <span class="today-metric-value">${todayCount}</span>
-          <span class="today-metric-label">今日记录</span>
+          <span class="today-metric-label">${MindTraceUtils.escapeHtml(getText('todayRecords'))}</span>
         </div>
         <div class="today-metric">
           <span class="today-metric-value">${weekCount}</span>
-          <span class="today-metric-label">近7天</span>
+          <span class="today-metric-label">${MindTraceUtils.escapeHtml(getText('last7Days'))}</span>
         </div>
         <div class="today-metric">
           <span class="today-metric-value">${streak}</span>
-          <span class="today-metric-label">连续天数</span>
+          <span class="today-metric-label">${MindTraceUtils.escapeHtml(getText('streakDaysLabel'))}</span>
         </div>
       </div>
     `;
 
     const statusText =
       todayCount > 0
-        ? '今天的思考已记录 / 继续保持，思维正在生长 🌱'
-        : '继续保持，思维正在生长';
+        ? getText('thoughtsCapturedToday', [String(todayCount)])
+        : getText('todayStatusGrowing');
 
     todayContentEl.innerHTML = `
       ${metricsHtml}
@@ -1567,24 +1591,24 @@
     const minutes = Math.floor(diff / 60000);
 
     if (minutes < 1) {
-      return '刚刚';
+      return getText('justNow');
     }
     if (minutes < 60) {
-      return `${minutes} 分钟前`;
+      return getText('minutesAgo', [minutes]);
     }
     const hours = Math.floor(minutes / 60);
     if (hours < 24) {
-      return `${hours} 小时前`;
+      return getText('hoursAgo', [hours]);
     }
     const days = Math.floor(hours / 24);
     if (days < 7) {
-      return `${days} 天前`;
+      return getText('daysAgo', [days]);
     }
     if (days < 30) {
-      return `${Math.floor(days / 7)} 周前`;
+      return getText('weeksAgo', [Math.floor(days / 7)]);
     }
     if (days < 365) {
-      return `${Math.floor(days / 30)} 个月前`;
+      return getText('monthsAgo', [Math.floor(days / 30)]);
     }
     return MindTraceUtils.formatDate(timestamp);
   }
@@ -1593,7 +1617,7 @@
     const text =
       (record.note || '').trim() || (record.selectedText || '').trim();
     if (!text) {
-      return '（一条安静的记录）';
+      return getText('quietRecord');
     }
     const max = 200;
     return text.length > max ? text.slice(0, max) + '…' : text;
@@ -1602,7 +1626,7 @@
   function renderWhisper(items, shuffle) {
     if (!items.length) {
       recallContentEl.innerHTML =
-        '<p class="card-empty">记录更多思考后，会在这里随机浮现</p>';
+        `<p class="card-empty">${MindTraceUtils.escapeHtml(getText('recallEmpty'))}</p>`;
       recallShuffleBtn.hidden = true;
       currentRecallId = null;
       return;
@@ -1664,7 +1688,7 @@
     } catch (err) {
       console.error('[MindTrace] 时间线加载失败:', err);
       timelineEl.innerHTML =
-        '<p class="stream-empty">加载失败，请刷新后重试</p>';
+        `<p class="stream-empty">${MindTraceUtils.escapeHtml(getText('timelineLoadFailed'))}</p>`;
     }
   }
 
@@ -1677,14 +1701,14 @@
       flowHintEl.textContent =
         shownCount > 0
           ? modeExtra
-            ? `与「${q}」相关的思考 · ${modeExtra}`
-            : `与「${q}」相关的思考`
-          : '没有找到相关的思考';
+            ? getText('timelineSearchWithMode', [q, modeExtra])
+            : getText('timelineSearchRelated', [q])
+          : getText('timelineSearchEmpty');
       timelineCountEl.textContent =
-        shownCount > 0 ? `${shownCount} 条相关` : '';
+        shownCount > 0 ? getText('timelineRelatedCount', [shownCount]) : '';
     } else {
-      flowHintEl.textContent = '沿着时间，慢慢向下走';
-      timelineCountEl.textContent = total > 0 ? `共 ${total} 条` : '';
+      flowHintEl.textContent = getText('flowHintDefault');
+      timelineCountEl.textContent = total > 0 ? getText('timelineTotalCount', [total]) : '';
     }
   }
 
@@ -1693,8 +1717,8 @@
     timelineEl.innerHTML = `
       <p class="stream-empty">${
         hasQuery
-          ? '没有找到相关的思考<br/>试试换一句话描述，或等语义模型补全向量后再搜'
-          : '还没有思考留下痕迹<br/>在网页划词，让灵感落入花园'
+          ? getText('timelineEmptySearch')
+          : getText('timelineEmptyDefault')
       }</p>
     `;
   }
@@ -1714,14 +1738,14 @@
   async function loadMoreBatch() {
     if (isLoadingMore || renderedCount >= filteredItems.length) {
       if (renderedCount >= filteredItems.length && filteredItems.length > 0) {
-        setStreamStatus('已加载全部');
+        setStreamStatus(getText('allLoaded'));
       }
       updateLoadMoreButton();
       return;
     }
 
     isLoadingMore = true;
-    setStreamStatus('加载中…', true);
+    setStreamStatus(getText('loading'), true);
 
     const batch = filteredItems.slice(
       renderedCount,
@@ -1739,7 +1763,7 @@
 
     if (renderedCount >= filteredItems.length) {
       setStreamStatus(
-        filteredItems.length > PAGE_SIZE ? '已加载全部' : ''
+        filteredItems.length > PAGE_SIZE ? getText('allLoaded') : ''
       );
     } else {
       setStreamStatus('');
@@ -1763,7 +1787,7 @@
     const d = new Date(timestamp);
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
-    const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    const weekdays = WEEKDAY_KEYS.map((key) => getText(key));
     const h = String(d.getHours()).padStart(2, '0');
     const min = String(d.getMinutes()).padStart(2, '0');
     return {
@@ -1789,7 +1813,7 @@
         bodyParts.push(selected);
       }
       return {
-        title: title || '（未写下想法）',
+        title: title || getText('noThoughtWritten'),
         body: bodyParts.join('\n\n'),
       };
     }
@@ -1801,7 +1825,7 @@
       return { title: selected.slice(0, 72) + '…', body: selected };
     }
 
-    return { title: '（未写下想法）', body: '' };
+    return { title: getText('noThoughtWritten'), body: '' };
   }
 
   function buildBodyHtml(body) {
@@ -1815,15 +1839,15 @@
     const expandId = `body-${MindTraceUtils.generateId()}`;
     return `
       <p class="thought-body thought-body-collapsed" data-expand-target="${expandId}">${escaped}</p>
-      <button type="button" class="thought-more" data-expand-id="${expandId}" data-expanded="false">继续阅读</button>
+      <button type="button" class="thought-more" data-expand-id="${expandId}" data-expanded="false">${MindTraceUtils.escapeHtml(getText('continueReading'))}</button>
     `;
   }
 
   function getRelatedDisplayLabel(record) {
     const { title } = splitThoughtContent(record);
     const label = (title || '').trim();
-    if (!label || label.startsWith('（')) {
-      return '一条相关思考';
+    if (!label || label === getText('noThoughtWritten') || label.startsWith('（')) {
+      return getText('relatedThought');
     }
     return label.length > 56 ? label.slice(0, 56) + '…' : label;
   }
@@ -1856,7 +1880,7 @@
         );
         const scoreText = formatRelationScore(score);
         const scoreHtml = scoreText
-          ? `<span class="thought-related-score">关联 ${scoreText}</span>`
+          ? `<span class="thought-related-score">${MindTraceUtils.escapeHtml(getText('relationScore', [scoreText]))}</span>`
           : '';
         return `<li class="thought-related-item">
           <button type="button" class="thought-related-link" data-open-detail-id="${MindTraceUtils.escapeHtml(record.id)}">
@@ -1867,8 +1891,8 @@
       .join('');
 
     return `
-      <div class="thought-related" aria-label="相关思考">
-        <p class="thought-related-label">相关想法</p>
+      <div class="thought-related" aria-label="${MindTraceUtils.escapeHtml(getText('relatedThoughtsAria'))}">
+        <p class="thought-related-label">${MindTraceUtils.escapeHtml(getText('relatedIdeas'))}</p>
         <ul class="thought-related-list">${listItems}</ul>
       </div>
     `;
@@ -1885,16 +1909,16 @@
           `<span class="tag-pill thought-tag-pill">${MindTraceUtils.escapeHtml(t)}</span>`
       )
       .join('');
-    return `<div class="thought-tags" aria-label="认知标签">${pills}</div>`;
+    return `<div class="thought-tags" aria-label="${MindTraceUtils.escapeHtml(getText('cognitiveTagsAria'))}">${pills}</div>`;
   }
 
   function buildCognitivePathHtml(item) {
     const tags = (item.tags || []).join(' → ');
-    const source = (item.pageTitle || '').trim() || '未知来源';
+    const source = (item.pageTitle || '').trim() || getText('unknownSource');
     const path = tags
-      ? `${tags} · 来自 ${source}`
-      : `来自 ${source}`;
-    return `<p class="thought-cognitive-path"><span class="thought-cognitive-path-label">认知路径</span>${MindTraceUtils.escapeHtml(path)}</p>`;
+      ? `${tags} · ${getText('fromSource', [source])}`
+      : getText('fromSource', [source]);
+    return `<p class="thought-cognitive-path"><span class="thought-cognitive-path-label">${MindTraceUtils.escapeHtml(getText('cognitivePathLabel'))}</span>${MindTraceUtils.escapeHtml(path)}</p>`;
   }
 
   function openThoughtDetail(thoughtId) {
@@ -1911,7 +1935,7 @@
     const related = getRelatedForItem(item);
     const relatedHtml = related.length
       ? `<section class="thought-detail-section">
-          <h4 class="thought-detail-section-title">相关想法</h4>
+          <h4 class="thought-detail-section-title">${MindTraceUtils.escapeHtml(getText('relatedIdeas'))}</h4>
           <ul class="thought-related-list">
             ${related
               .map(({ record, score }) => {
@@ -1929,7 +1953,7 @@
     const themesHtml =
       (item.tags || []).length > 0
         ? `<section class="thought-detail-section">
-            <h4 class="thought-detail-section-title">相关主题</h4>
+            <h4 class="thought-detail-section-title">${MindTraceUtils.escapeHtml(getText('relatedThemes'))}</h4>
             <div class="tag-row">${(item.tags || [])
               .map(
                 (t) =>
@@ -1943,7 +1967,7 @@
     const updated = item.updatedAt
       ? MindTraceUtils.formatDate(item.updatedAt)
       : created;
-    const pageTitleEsc = MindTraceUtils.escapeHtml(item.pageTitle || '未知页面');
+    const pageTitleEsc = MindTraceUtils.escapeHtml(item.pageTitle || getText('unknownPage'));
     const pageUrlEsc = MindTraceUtils.escapeHtml(item.pageUrl || '#');
 
     thoughtDetailBodyEl.innerHTML = `
@@ -1954,11 +1978,11 @@
       ${themesHtml}
       ${relatedHtml}
       <section class="thought-detail-section">
-        <h4 class="thought-detail-section-title">来源</h4>
+        <h4 class="thought-detail-section-title">${MindTraceUtils.escapeHtml(getText('source'))}</h4>
         <p><a href="${pageUrlEsc}" target="_blank" rel="noopener noreferrer">${pageTitleEsc}</a></p>
       </section>
       ${buildCognitivePathHtml(item)}
-      <p class="thought-detail-meta">创建 ${MindTraceUtils.escapeHtml(created)}${item.updatedAt ? ` · 编辑 ${MindTraceUtils.escapeHtml(updated)}` : ''}</p>
+      <p class="thought-detail-meta">${MindTraceUtils.escapeHtml(getText('createdAt', [created]))}${item.updatedAt ? MindTraceUtils.escapeHtml(getText('editedAt', [updated])) : ''}</p>
     `;
 
     thoughtDetailBodyEl.querySelectorAll('[data-open-detail-id]').forEach(
@@ -2027,8 +2051,8 @@
       ids.length > MAX_EVIDENCE_DISPLAY
         ? `<span class="thought-evidence-more">+${ids.length - MAX_EVIDENCE_DISPLAY}</span>`
         : '';
-    return `<div class="thought-evidence" data-thought-id="${MindTraceUtils.escapeHtml(item.id)}" aria-label="灵感现场">
-        <span class="thought-evidence-label">灵感现场</span>
+    return `<div class="thought-evidence" data-thought-id="${MindTraceUtils.escapeHtml(item.id)}" aria-label="${MindTraceUtils.escapeHtml(getText('inspirationSceneAria'))}">
+        <span class="thought-evidence-label">${MindTraceUtils.escapeHtml(getText('inspirationSceneLabel'))}</span>
         ${extra}
       </div>`;
   }
@@ -2100,10 +2124,10 @@
     if (options && options.remote) {
       btn.dataset.remotePreview = '1';
     }
-    btn.setAttribute('aria-label', '放大查看思维证据');
+    btn.setAttribute('aria-label', getText('zoomEvidenceAria'));
     const img = document.createElement('img');
     img.src = url;
-    img.alt = '页面预览';
+    img.alt = getText('pagePreviewAlt');
     img.loading = 'lazy';
     img.addEventListener('error', () => {
       btn.remove();
@@ -2207,14 +2231,14 @@
       return '';
     }
     const shortTitle = MindTraceUtils.escapeHtml(
-      MindTraceUtils.truncate(pageTitle || '来源', 14)
+      MindTraceUtils.truncate(pageTitle || getText('sourceChip'), 14)
     );
     const url = MindTraceUtils.escapeHtml(pageUrl);
     return `
       <div class="thought-chips">
         <a class="thought-chip" href="${url}" target="_blank" rel="noopener noreferrer">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
-          查看来源
+          ${MindTraceUtils.escapeHtml(getText('viewSource'))}
         </a>
         <span class="thought-chip thought-chip--static">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
@@ -2232,13 +2256,15 @@
 
     const t = formatTimelineTime(item.createdAt);
     const { title, body } = splitThoughtContent(item);
-    const titleClass = title.startsWith('（')
+    const emptyTitle = getText('noThoughtWritten');
+    const titleClass =
+      title === emptyTitle || title.startsWith('（')
       ? 'thought-title thought-title-empty'
       : 'thought-title';
     const titleHtml = `<h3 class="${titleClass}">${MindTraceUtils.escapeHtml(title)}</h3>`;
     const bodyHtml = buildBodyHtml(body);
 
-    const pageTitle = item.pageTitle || '未知页面';
+    const pageTitle = item.pageTitle || getText('unknownPage');
     const pageUrl = item.pageUrl || '#';
     const pageTitleEsc = MindTraceUtils.escapeHtml(pageTitle);
     const pageUrlEsc = MindTraceUtils.escapeHtml(pageUrl);
@@ -2257,11 +2283,11 @@
       <div class="timeline-axis"><span class="timeline-dot"></span></div>
       <div class="timeline-card">
         <div class="timeline-card-menu">
-          <button type="button" class="btn-menu" aria-label="更多操作" aria-expanded="false">···</button>
+          <button type="button" class="btn-menu" aria-label="${MindTraceUtils.escapeHtml(getText('moreActionsAria'))}" aria-expanded="false">···</button>
           <div class="menu-dropdown">
-            <button type="button" data-detail-id="${idEscaped}">认知详情</button>
-            <button type="button" data-edit-id="${idEscaped}">编辑思考</button>
-            <button type="button" data-remove-id="${idEscaped}">移除这条思考</button>
+            <button type="button" data-detail-id="${idEscaped}">${MindTraceUtils.escapeHtml(getText('cognitiveDetail'))}</button>
+            <button type="button" data-edit-id="${idEscaped}">${MindTraceUtils.escapeHtml(getText('editThought'))}</button>
+            <button type="button" data-remove-id="${idEscaped}">${MindTraceUtils.escapeHtml(getText('removeThought'))}</button>
           </div>
         </div>
         ${titleHtml}
@@ -2269,7 +2295,7 @@
         ${tagsHtml}
         ${evidenceHtml}
         ${chipsHtml}
-        <p class="thought-origin">来源：<a href="${pageUrlEsc}" target="_blank" rel="noopener noreferrer">${pageTitleEsc}</a></p>
+        <p class="thought-origin">${MindTraceUtils.escapeHtml(getText('originLabel'))}<a href="${pageUrlEsc}" target="_blank" rel="noopener noreferrer">${pageTitleEsc}</a></p>
         ${relatedHtml}
       </div>
     `;
@@ -2339,15 +2365,17 @@
 
   function buildReadContentHtml(item) {
     const { title, body } = splitThoughtContent(item);
-    const titleClass = title.startsWith('（')
+    const emptyTitle = getText('noThoughtWritten');
+    const titleClass =
+      title === emptyTitle || title.startsWith('（')
       ? 'thought-title thought-title-empty'
       : 'thought-title';
     const titleHtml = `<h3 class="${titleClass}">${MindTraceUtils.escapeHtml(title)}</h3>`;
     const bodyHtml = buildBodyHtml(body);
     const chipsHtml = buildChipsHtml(item.pageUrl, item.pageTitle);
-    const pageTitleEsc = MindTraceUtils.escapeHtml(item.pageTitle || '未知页面');
+    const pageTitleEsc = MindTraceUtils.escapeHtml(item.pageTitle || getText('unknownPage'));
     const pageUrlEsc = MindTraceUtils.escapeHtml(item.pageUrl || '#');
-    const originHtml = `<p class="thought-origin">来源：<a href="${pageUrlEsc}" target="_blank" rel="noopener noreferrer">${pageTitleEsc}</a></p>`;
+    const originHtml = `<p class="thought-origin">${MindTraceUtils.escapeHtml(getText('originLabel'))}<a href="${pageUrlEsc}" target="_blank" rel="noopener noreferrer">${pageTitleEsc}</a></p>`;
     const evidenceHtml = buildEvidenceShellHtml(item);
     const relatedHtml = buildRelatedThoughtsHtml(item);
     return titleHtml + bodyHtml + evidenceHtml + chipsHtml + originHtml + relatedHtml;
@@ -2416,24 +2444,25 @@
         type="text"
         class="thought-edit-title"
         value=""
-        placeholder="标题或第一句想法"
-        aria-label="思考标题"
+        placeholder="${MindTraceUtils.escapeHtml(getText('editTitlePlaceholder'))}"
+        aria-label="${MindTraceUtils.escapeHtml(getText('editTitleAria'))}"
       />
       <textarea
         class="thought-edit-body"
         rows="3"
-        placeholder="继续写下你的想法…"
-        aria-label="思考正文"
+        placeholder="${MindTraceUtils.escapeHtml(getText('editBodyPlaceholder'))}"
+        aria-label="${MindTraceUtils.escapeHtml(getText('editBodyAria'))}"
       ></textarea>
       <div class="timeline-card-edit-actions">
-        <button type="button" class="btn-edit-save">保存修改</button>
-        <button type="button" class="btn-edit-cancel">取消</button>
+        <button type="button" class="btn-edit-save">${MindTraceUtils.escapeHtml(getText('saveEdit'))}</button>
+        <button type="button" class="btn-edit-cancel">${MindTraceUtils.escapeHtml(getText('cancel'))}</button>
       </div>
     `;
 
     const titleInput = editPanel.querySelector('.thought-edit-title');
     const bodyTextarea = editPanel.querySelector('.thought-edit-body');
-    titleInput.value = title.startsWith('（') ? '' : title;
+    titleInput.value =
+      title === getText('noThoughtWritten') || title.startsWith('（') ? '' : title;
     bodyTextarea.value = body;
 
     card.appendChild(editPanel);
@@ -2521,7 +2550,7 @@
     const bodyVal = bodyTextarea.value.trim();
 
     if (!titleVal && !bodyVal) {
-      alert('请至少填写标题或正文');
+      alert(getText('editEmptyAlert'));
       titleInput.focus();
       return;
     }
@@ -2547,7 +2576,7 @@
       }
     } catch (err) {
       console.error('[MindTrace] 保存失败:', err);
-      alert('保存失败，请稍后再试');
+      alert(getText('saveFailed'));
     } finally {
       saveBtn.disabled = false;
     }
@@ -2644,11 +2673,11 @@
 
     if (expanded) {
       el.classList.add('thought-body-collapsed');
-      btn.textContent = '继续阅读';
+      btn.textContent = getText('continueReading');
       btn.setAttribute('data-expanded', 'false');
     } else {
       el.classList.remove('thought-body-collapsed');
-      btn.textContent = '收起';
+      btn.textContent = getText('collapse');
       btn.setAttribute('data-expanded', 'true');
     }
   }
@@ -2658,7 +2687,7 @@
       return;
     }
 
-    if (!confirm('确定移除这条思考吗？移除后无法恢复。')) {
+    if (!confirm(getText('confirmRemoveThought'))) {
       return;
     }
 
@@ -2667,7 +2696,7 @@
       await reloadAllData(searchInput.value);
     } catch (err) {
       console.error('[MindTrace] 移除失败:', err);
-      alert('移除失败，请稍后再试');
+      alert(getText('removeFailed'));
     }
   }
 
@@ -2683,7 +2712,7 @@
     try {
       const items = await MindTraceStorage.getAll(currentGardenId);
       if (!items.length) {
-        alert('当前花园还没有可导出的思考');
+        alert(getText('exportEmpty'));
         return;
       }
 
@@ -2694,7 +2723,7 @@
       );
     } catch (err) {
       console.error('[MindTrace] 导出失败:', err);
-      alert('导出失败，请稍后再试');
+      alert(getText('exportFailed'));
     } finally {
       exportMdBtn.disabled = false;
     }
@@ -2702,7 +2731,7 @@
 
   function buildMarkdownDocument(items, garden) {
     const header = garden
-      ? `# 认知花园：${escapeMarkdownHeading(garden.name)}\n\n`
+      ? `${getText('exportHeader', [escapeMarkdownHeading(garden.name)])}\n\n`
       : '';
     const blocks = items.map((item) => formatRecordAsMarkdown(item));
     return header + blocks.join('\n\n' + RECORD_SEPARATOR + '\n\n') + '\n';
@@ -2711,7 +2740,7 @@
   function formatRecordAsMarkdown(record) {
     const title = getRecordTitle(record);
     const time = formatExportDateTime(record.createdAt);
-    const pageTitle = (record.pageTitle || '未知页面').trim();
+    const pageTitle = (record.pageTitle || getText('unknownPage')).trim();
     const pageUrl = (record.pageUrl || '').trim();
     const selectedText = (record.selectedText || '').trim();
     const note = (record.note || '').trim();
@@ -2719,32 +2748,32 @@
     return [
       `# ${escapeMarkdownHeading(title)}`,
       '',
-      `时间：${time}`,
+      `${getText('exportTime')}${time}`,
       '',
-      '来源页面：',
+      getText('exportSourcePage'),
       pageTitle,
       '',
-      '网页链接：',
-      pageUrl || '（无）',
+      getText('exportWebLink'),
+      pageUrl || getText('exportNone'),
       '',
       '---',
       '',
-      '## 原文',
+      getText('exportOriginal'),
       '',
-      selectedText || '（无）',
+      selectedText || getText('exportNone'),
       '',
       '---',
       '',
-      '## 我的想法',
+      getText('exportMyThought'),
       '',
-      note || '（无）',
+      note || getText('exportNone'),
     ].join('\n');
   }
 
   function getRecordTitle(record) {
     const note = (record.note || '').trim();
     const selected = (record.selectedText || '').trim();
-    const source = note || selected || '无标题';
+    const source = note || selected || getText('untitled');
     return source.length <= 20 ? source : source.slice(0, 20);
   }
 

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MindTrace — 思维宇宙</title>
+    <title data-i18n="graphPageTitle">MindTrace — Thought Universe</title>
     <link rel="stylesheet" href="graph/graph.css?v=4.6.0" />
   </head>
   <body class="cosmos-body">
@@ -13,8 +13,8 @@
           <div class="cosmos-header-brand">
             <span class="cosmos-header-icon" aria-hidden="true">🌌</span>
             <div>
-              <h1 class="cosmos-title">思维宇宙</h1>
-              <p class="cosmos-sub">发现想法之间隐藏的联系</p>
+              <h1 class="cosmos-title" data-i18n="thoughtUniverse">Thought Universe</h1>
+              <p class="cosmos-sub" data-i18n="cosmosDiscoverSub">Discover hidden connections between your ideas</p>
             </div>
           </div>
         </header>
@@ -23,7 +23,7 @@
           <section class="cosmos-center">
             <div class="cosmos-overlay" aria-live="polite">
               <div class="cosmos-spinner"></div>
-              <p class="cosmos-overlay-text">正在载入思维宇宙…</p>
+              <p class="cosmos-overlay-text" data-i18n="cosmosLoading">Loading Thought Universe…</p>
             </div>
           </section>
           <aside class="cosmos-detail"></aside>
@@ -32,6 +32,10 @@
     </div>
     <div id="graph-boot-error" class="graph-boot-error" hidden></div>
 
+    <script src="src/utils/i18n.js"></script>
+    <script>
+      MindTraceI18n.applyPageI18n(document);
+    </script>
     <script src="utils.js"></script>
     <script src="services/garden.service.js"></script>
     <script src="services/keyword.service.js"></script>

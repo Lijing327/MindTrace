@@ -33,7 +33,7 @@
         tabId: tab.id,
       });
     } catch (err) {
-      console.warn('[MindTrace Popup] 划词脚本注入失败:', err);
+      console.warn('[MindTrace Popup] inject failed:', err);
     }
   }
 
@@ -41,6 +41,7 @@
    * 初始化
    */
   async function init() {
+    MindTraceI18n.applyPageI18n(document);
     await injectSelectionCapture();
     await loadAndRender();
 
@@ -73,9 +74,8 @@
       const recent = all.slice(0, RECENT_LIMIT);
       renderList(recent, all.length, garden);
     } catch (err) {
-      console.error('[MindTrace Popup] 加载失败:', err);
-      listContainer.innerHTML =
-        '<div class="list-empty"><p>加载失败，请关闭后重试</p></div>';
+      console.error('[MindTrace Popup] load failed:', err);
+      listContainer.innerHTML = `<div class="list-empty"><p>${MindTraceUtils.escapeHtml(getText('popupLoadFailed'))}</p></div>`;
     }
   }
 
@@ -101,7 +101,7 @@
         ${gardenHint}
         <div class="list-empty">
           <div class="list-empty-icon">✦</div>
-          <p>当前花园还没有记录<br/>先点击扩展图标，再在网页划词并点「记录灵感」</p>
+          <p>${getText('popupEmptyHint')}</p>
         </div>
       `;
       return;
@@ -111,18 +111,13 @@
 
     if (totalCount > RECENT_LIMIT) {
       html += `
-        <p class="list-more-hint">还有 ${totalCount - RECENT_LIMIT} 条，请在灵感库查看</p>
+        <p class="list-more-hint">${MindTraceUtils.escapeHtml(getText('popupMoreHint', [String(totalCount - RECENT_LIMIT)]))}</p>
       `;
     }
 
     listContainer.innerHTML = html;
   }
 
-  /**
-   * 渲染单条预览卡片
-   * @param {InspirationRecord} item
-   * @returns {string}
-   */
   /**
    * 列表点击：删除记录
    * @param {MouseEvent} event
@@ -141,7 +136,7 @@
       return;
     }
 
-    if (!confirm('确定删除这条记录吗？删除后无法恢复。')) {
+    if (!confirm(getText('confirmDeleteRecord'))) {
       return;
     }
 
@@ -151,8 +146,8 @@
       await MindTraceStorage.deleteById(id);
       await loadAndRender();
     } catch (err) {
-      console.error('[MindTrace Popup] 删除失败:', err);
-      alert('删除失败，请稍后再试');
+      console.error('[MindTrace Popup] delete failed:', err);
+      alert(getText('deleteFailed'));
       btn.disabled = false;
     }
   }
@@ -164,14 +159,16 @@
       ? MindTraceUtils.escapeHtml(
           MindTraceUtils.truncate(item.note, 120)
         )
-      : '<span class="card-note-empty">（未填写想法）</span>';
+      : `<span class="card-note-empty">${MindTraceUtils.escapeHtml(getText('noNoteFilled'))}</span>`;
     const quote = MindTraceUtils.escapeHtml(
       MindTraceUtils.truncate(item.selectedText, 100)
     );
     const title = MindTraceUtils.escapeHtml(
-      MindTraceUtils.truncate(item.pageTitle || '未知页面', 40)
+      MindTraceUtils.truncate(item.pageTitle || getText('unknownPage'), 40)
     );
     const url = MindTraceUtils.escapeHtml(item.pageUrl || '#');
+    const deleteTitle = MindTraceUtils.escapeHtml(getText('deleteRecordTitle'));
+    const deleteAria = MindTraceUtils.escapeHtml(getText('deleteRecordAria'));
 
     return `
       <article class="card">
@@ -181,8 +178,8 @@
             type="button"
             class="btn-card-delete"
             data-delete-id="${idEscaped}"
-            title="删除这条记录"
-            aria-label="删除这条记录"
+            title="${deleteTitle}"
+            aria-label="${deleteAria}"
           >×</button>
         </div>
         <div class="card-note">${note}</div>
@@ -208,7 +205,7 @@
       const items = await MindTraceStorage.getAll();
 
       if (!items.length) {
-        alert('暂无灵感记录，无法导出');
+        alert(getText('noRecordsExport'));
         return;
       }
 
@@ -216,8 +213,8 @@
       const filename = buildExportFilename();
       downloadMarkdownFile(markdown, filename);
     } catch (err) {
-      console.error('[MindTrace Popup] 导出失败:', err);
-      alert('导出失败，请重试');
+      console.error('[MindTrace Popup] export failed:', err);
+      alert(getText('exportFailed'));
     } finally {
       exportMdBtn.disabled = false;
     }
@@ -231,7 +228,7 @@
   function formatRecordAsMarkdown(record) {
     const title = getRecordTitle(record);
     const time = formatExportDateTime(record.createdAt);
-    const pageTitle = (record.pageTitle || '未知页面').trim();
+    const pageTitle = (record.pageTitle || getText('unknownPage')).trim();
     const pageUrl = (record.pageUrl || '').trim();
     const selectedText = (record.selectedText || '').trim();
     const note = (record.note || '').trim();
@@ -239,32 +236,32 @@
     return [
       `# ${escapeMarkdownHeading(title)}`,
       '',
-      `时间：${time}`,
+      `${getText('exportTime')} ${time}`,
       '',
-      '来源页面：',
+      getText('exportSourcePage'),
       pageTitle,
       '',
-      '网页链接：',
-      pageUrl || '（无）',
+      getText('exportWebLink'),
+      pageUrl || getText('exportNone'),
       '',
       '---',
       '',
-      '## 原文',
+      getText('exportOriginal'),
       '',
-      selectedText || '（无）',
+      selectedText || getText('exportNone'),
       '',
       '---',
       '',
-      '## 我的想法',
+      getText('exportMyThought'),
       '',
-      note || '（无）',
+      note || getText('exportNone'),
     ].join('\n');
   }
 
   function getRecordTitle(record) {
     const note = (record.note || '').trim();
     const selected = (record.selectedText || '').trim();
-    const source = note || selected || '无标题';
+    const source = note || selected || getText('untitled');
     return source.length <= 20 ? source : source.slice(0, 20);
   }
 

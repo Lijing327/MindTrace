@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,30 +10,31 @@
     <header class="header">
       <div class="header-main">
         <h1 class="logo">MindTrace</h1>
-        <p class="tagline">思维流 · 快速查看</p>
+        <p class="tagline" data-i18n="popupTagline">思维流 · 快速查看</p>
       </div>
       <button
         type="button"
         id="export-md-btn"
         class="btn-export-md"
+        data-i18n="exportMdBtn"
+        data-i18n-title="exportMdTitle"
         title="导出全部为 Markdown 文件"
       >
         导出 MD
       </button>
     </header>
 
-    <p class="recent-hint">最近 5 条</p>
+    <p class="recent-hint" data-i18n="recentFive">最近 5 条</p>
 
-    <main id="list-container" class="list-container">
-      <!-- 由 popup.js 动态渲染 -->
-    </main>
+    <main id="list-container" class="list-container"></main>
 
     <footer class="footer">
-      <button type="button" id="open-dashboard-btn" class="btn-open-dashboard">
+      <button type="button" id="open-dashboard-btn" class="btn-open-dashboard" data-i18n="openMindGarden">
         进入思维花园
       </button>
     </footer>
 
+    <script src="src/utils/i18n.js"></script>
     <script src="utils.js"></script>
     <script src="services/garden.service.js"></script>
     <script src="services/keyword.service.js"></script>

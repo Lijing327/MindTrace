@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "MindTrace",
-  "version": "1.1.0",
-  "description": "浏览网页时快速记录灵感，并自动保留思考上下文。",
+  "default_locale": "en",
+  "version": "1.1.1",
+  "description": "__MSG_extDescription__",
   "permissions": ["storage", "activeTab", "scripting", "contextMenus"],
   "commands": {
     "capture-selection": {
@@ -10,14 +11,14 @@
         "default": "Alt+Shift+M",
         "mac": "Alt+Shift+M"
       },
-      "description": "记录当前页选中的文字"
+      "description": "__MSG_cmdCaptureSelectionDesc__"
     },
     "quick-note": {
       "suggested_key": {
         "default": "Alt+Shift+N",
         "mac": "Alt+Shift+N"
       },
-      "description": "空白速记（无需划词）"
+      "description": "__MSG_cmdQuickNoteDesc__"
     }
   },
   "optional_host_permissions": [
@@ -33,7 +34,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "MindTrace — 我的灵感",
+    "default_title": "__MSG_actionDefaultTitle__",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",

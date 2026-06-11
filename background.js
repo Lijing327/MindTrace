@@ -5,10 +5,11 @@
 
 'use strict';
 
-importScripts('services/preview.service.js');
+importScripts('src/utils/i18n.js', 'services/preview.service.js');
 
 /** @type {readonly string[]} */
 const CONTENT_SCRIPT_FILES = [
+  'src/utils/i18n.js',
   'utils.js',
   'services/garden.service.js',
   'services/keyword.service.js',
@@ -88,7 +89,7 @@ function setupContextMenus() {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: CONTEXT_MENU_IMAGE_ID,
-      title: '保存到 MindTrace',
+      title: chrome.i18n.getMessage('saveToMindTrace'),
       contexts: ['image'],
     });
   });
@@ -96,6 +97,7 @@ function setupContextMenus() {
 
 chrome.runtime.onInstalled.addListener(() => {
   setupContextMenus();
+  MindTraceI18n.initLocaleOnFirstLaunch();
 });
 
 chrome.runtime.onStartup.addListener(() => {

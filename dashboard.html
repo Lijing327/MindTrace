@@ -1,63 +1,64 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MindTrace — 思维花园</title>
+    <title data-i18n="pageTitleDefault">MindTrace — 思维花园</title>
     <link rel="stylesheet" href="dashboard.css?v=3.1.0" />
   </head>
   <body class="app">
     <div class="app-shell">
-      <aside class="sidebar" id="garden-rail" aria-label="主导航">
+      <aside class="sidebar" id="garden-rail" data-i18n-aria="mainNavAria" aria-label="主导航">
         <div class="sidebar-brand">
           <span class="sidebar-brand-mark" aria-hidden="true">🍂</span>
           <div class="sidebar-brand-text">
             <strong class="sidebar-brand-name">MindTrace</strong>
-            <span class="sidebar-brand-tag">你的思维花园</span>
+            <span class="sidebar-brand-tag" data-i18n="mindGardenTagline">你的思维花园</span>
           </div>
         </div>
 
-        <nav class="sidebar-nav" aria-label="主菜单">
+        <nav class="sidebar-nav" data-i18n-aria="mainMenuAria" aria-label="主菜单">
           <a href="#dashboard-home" class="nav-item is-active" data-nav="home">
             <span class="nav-icon" aria-hidden="true">🌼</span>
-            思维花园
+            <span data-i18n="mindGarden">思维花园</span>
           </a>
           <a href="#timeline-section" class="nav-item" data-nav="timeline">
             <span class="nav-icon" aria-hidden="true">🕒</span>
-            时间线
+            <span data-i18n="timeline">时间线</span>
           </a>
           <a href="#tag-cloud-block" class="nav-item" data-nav="tags">
             <span class="nav-icon" aria-hidden="true">🏷</span>
-            标签管理
+            <span data-i18n="tags">标签管理</span>
           </a>
           <a href="#recall-block" class="nav-item" data-nav="recall">
             <span class="nav-icon" aria-hidden="true">🔄</span>
-            随机回顾
+            <span data-i18n="randomReflection">随机回顾</span>
           </a>
           <a
             href="graph.html"
             class="nav-item nav-item--cosmos"
             id="cosmos-link"
+            data-i18n-title="viewThoughtGraph"
             title="查看思考关联图谱"
           >
             <span class="nav-icon" aria-hidden="true">✦</span>
-            思维宇宙
+            <span data-i18n="thoughtUniverse">思维宇宙</span>
           </a>
           <button type="button" class="nav-item nav-item--btn" id="export-md-btn">
             <span class="nav-icon" aria-hidden="true">📤</span>
-            导出记录
+            <span data-i18n="exportRecords">导出记录</span>
           </button>
           <button type="button" class="nav-item nav-item--btn" id="settings-open-btn">
             <span class="nav-icon" aria-hidden="true">⚙</span>
-            设置
+            <span data-i18n="settings">设置</span>
           </button>
         </nav>
 
-        <div class="trajectory-card" id="trajectory-widget" aria-label="认知轨迹"></div>
+        <div class="trajectory-card" id="trajectory-widget" data-i18n-aria="cognitiveTrajectoryAria" aria-label="认知轨迹"></div>
 
         <p class="sidebar-footnote">
           <span aria-hidden="true">☀</span>
-          保持记录，收获思考的复利。
+          <span data-i18n="keepRecordingFootnote">保持记录，收获思考的复利。</span>
         </p>
       </aside>
 
@@ -65,10 +66,10 @@
         <header class="page-header" id="dashboard-home">
           <div class="page-header-text">
             <h1 class="page-title" id="masthead-garden-name">
-              <span id="masthead-garden-name-text">思维花园</span>
+              <span id="masthead-garden-name-text" data-i18n="mindGarden">思维花园</span>
               <span class="page-title-icon" id="masthead-garden-emoji" aria-hidden="true">🌿</span>
             </h1>
-            <p class="page-subtitle" id="masthead-garden-desc">
+            <p class="page-subtitle" id="masthead-garden-desc" data-i18n="gardenDesc">
               记录灵感，沉淀思考，让想法自然生长
             </p>
           </div>
@@ -91,64 +92,65 @@
               type="search"
               id="search-input"
               class="search-input"
+              data-i18n-placeholder="searchPlaceholder"
               placeholder="搜索你的思考、内容或标签..."
               autocomplete="off"
             />
             <kbd class="search-kbd" id="search-kbd" aria-hidden="true">Ctrl K</kbd>
           </div>
 
-          <section class="panel panel-observe" id="cognition-mirror" aria-label="认知观察">
+          <section class="panel panel-observe" id="cognition-mirror" data-i18n-aria="cognitionObserveAria" aria-label="认知观察">
             <header class="panel-head panel-head--stack">
               <div class="panel-head-main">
                 <h2 class="panel-title">
-                  <span class="panel-icon panel-icon--spark" aria-hidden="true">✦</span>认知观察
+                  <span class="panel-icon panel-icon--spark" aria-hidden="true">✦</span><span data-i18n="cognitionObserve">认知观察</span>
                 </h2>
-                <p class="panel-desc">基于你的记录，发现一些有趣的洞察</p>
+                <p class="panel-desc" data-i18n="cognitionObserveDesc">基于你的记录，发现一些有趣的洞察</p>
               </div>
-              <span class="panel-badge" id="cognition-mirror-badge" hidden>更新中</span>
+              <span class="panel-badge" id="cognition-mirror-badge" hidden data-i18n="updating">更新中</span>
             </header>
             <div id="cognition-mirror-list" class="observe-grid"></div>
           </section>
 
           <div class="content-row">
-            <section class="panel" id="today-block" aria-label="今日思考">
+            <section class="panel" id="today-block" data-i18n-aria="todayBlockAria" aria-label="今日思考">
               <header class="panel-head">
                 <h2 class="panel-title">
-                  <span class="panel-icon panel-icon--sun" aria-hidden="true">☀</span>今日思考
+                  <span class="panel-icon panel-icon--sun" aria-hidden="true">☀</span><span data-i18n="todayThoughts">今日思考</span>
                 </h2>
-                <button type="button" class="btn-soft" id="today-new-btn">+ 新记录</button>
+                <button type="button" class="btn-soft" id="today-new-btn" data-i18n="newRecord">+ 新记录</button>
               </header>
               <div id="today-content" class="panel-body"></div>
             </section>
 
-            <section class="panel" id="pickup-block" aria-label="回顾拾遗">
+            <section class="panel" id="pickup-block" data-i18n-aria="pickupBlockAria" aria-label="回顾拾遗">
               <header class="panel-head">
                 <h2 class="panel-title">
-                  <span class="panel-icon panel-icon--pickup" aria-hidden="true">🔖</span>回顾拾遗
+                  <span class="panel-icon panel-icon--pickup" aria-hidden="true">🔖</span><span data-i18n="reviewPickup">回顾拾遗</span>
                 </h2>
-                <a href="#timeline-section" class="panel-link">全部回顾 →</a>
+                <a href="#timeline-section" class="panel-link" data-i18n="allReview">全部回顾 →</a>
               </header>
               <div id="pickup-content" class="panel-body"></div>
             </section>
           </div>
 
           <div class="content-row">
-            <section class="panel" id="tag-cloud-block" aria-label="标签云">
+            <section class="panel" id="tag-cloud-block" data-i18n-aria="tagCloudBlockAria" aria-label="标签云">
               <header class="panel-head">
                 <h2 class="panel-title">
-                  <span class="panel-icon panel-icon--tag" aria-hidden="true">🏷</span>标签云
+                  <span class="panel-icon panel-icon--tag" aria-hidden="true">🏷</span><span data-i18n="tagCloud">标签云</span>
                 </h2>
-                <a href="#tag-cloud-block" class="panel-link">管理标签 →</a>
+                <a href="#tag-cloud-block" class="panel-link" data-i18n="manageTags">管理标签 →</a>
               </header>
               <div id="tag-cloud-content" class="panel-body"></div>
             </section>
 
-            <section class="panel" id="recall-block" aria-label="随机回顾">
+            <section class="panel" id="recall-block" data-i18n-aria="recallBlockAria" aria-label="随机回顾">
               <header class="panel-head">
                 <h2 class="panel-title">
-                  <span class="panel-icon panel-icon--quote" aria-hidden="true">❝</span>随机回顾
+                  <span class="panel-icon panel-icon--quote" aria-hidden="true">❝</span><span data-i18n="randomReflection">随机回顾</span>
                 </h2>
-                <button type="button" id="recall-shuffle-btn" class="panel-link panel-link--btn">
+                <button type="button" id="recall-shuffle-btn" class="panel-link panel-link--btn" data-i18n="shuffleRecall">
                   🔄 换一条
                 </button>
               </header>
@@ -156,11 +158,11 @@
             </section>
           </div>
 
-          <section class="panel panel-timeline" id="timeline-section" aria-label="思维时间线">
+          <section class="panel panel-timeline" id="timeline-section" data-i18n-aria="timelineBlockAria" aria-label="思维时间线">
             <header class="timeline-header">
               <div class="timeline-header-text">
-                <h2 class="timeline-title">思维时间线</h2>
-                <p id="flow-hint" class="timeline-sub">沿着时间，慢慢向下走</p>
+                <h2 class="timeline-title" data-i18n="thoughtTimeline">思维时间线</h2>
+                <p id="flow-hint" class="timeline-sub" data-i18n="flowHintDefault">沿着时间，慢慢向下走</p>
               </div>
               <div class="timeline-header-meta">
                 <p id="embedding-status" class="embedding-status" hidden aria-live="polite"></p>
@@ -174,7 +176,7 @@
 
             <div id="load-sentinel" class="load-sentinel" aria-hidden="true"></div>
             <div class="stream-footer">
-              <button type="button" id="load-more-btn" class="btn-load-more" hidden>
+              <button type="button" id="load-more-btn" class="btn-load-more" hidden data-i18n="loadMore">
                 加载更多
               </button>
               <p id="load-status" class="stream-status"></p>
@@ -182,7 +184,7 @@
           </section>
         </main>
 
-        <footer class="garden-connect" id="garden-connect" aria-label="联系开发者" hidden>
+        <footer class="garden-connect" id="garden-connect" data-i18n-aria="contactDeveloperAria" aria-label="联系开发者" hidden>
           <div class="garden-connect-inner" id="garden-connect-inner"></div>
         </footer>
       </div>
@@ -191,71 +193,74 @@
     <dialog id="settings-dialog" class="settings-dialog">
       <form method="dialog" class="settings-dialog-inner">
         <header class="settings-dialog-head">
-          <h3 class="settings-dialog-title">设置</h3>
-          <button type="button" class="settings-dialog-close" id="settings-close-btn" aria-label="关闭">×</button>
+          <h3 class="settings-dialog-title" data-i18n="settings">设置</h3>
+          <button type="button" class="settings-dialog-close" id="settings-close-btn" data-i18n-aria="close" aria-label="关闭">×</button>
         </header>
         <section class="settings-section">
-          <h4 class="settings-section-title">花园空间</h4>
-          <div id="garden-list" class="garden-list" role="listbox" aria-label="花园列表"></div>
-          <button type="button" id="garden-create-btn" class="btn-soft btn-soft--block">
+          <h4 class="settings-section-title" data-i18n="gardenSpace">花园空间</h4>
+          <div id="garden-list" class="garden-list" role="listbox" data-i18n-aria="gardenListAria" aria-label="花园列表"></div>
+          <button type="button" id="garden-create-btn" class="btn-soft btn-soft--block" data-i18n="createGarden">
             + 创建花园
           </button>
         </section>
         <section class="settings-section settings-section--hint">
-          <p class="settings-hint">思维宇宙图谱已移至左侧导航「思维宇宙」，可随时查看思考之间的关联。</p>
+          <p class="settings-hint" data-i18n="settingsCosmosHint">思维宇宙图谱已移至左侧导航「思维宇宙」，可随时查看思考之间的关联。</p>
         </section>
         <footer class="settings-dialog-foot">
-          <button type="button" class="btn-soft" id="settings-dismiss-btn">完成</button>
+          <button type="button" class="btn-soft" id="settings-dismiss-btn" data-i18n="done">完成</button>
         </footer>
       </form>
     </dialog>
 
     <dialog id="garden-dialog" class="garden-dialog">
       <form method="dialog" class="garden-dialog-form" id="garden-dialog-form">
-        <h3 class="garden-dialog-title" id="garden-dialog-title">创建花园</h3>
-        <label class="garden-dialog-label" for="garden-dialog-name">花园名称</label>
+        <h3 class="garden-dialog-title" id="garden-dialog-title" data-i18n="createGardenTitle">创建花园</h3>
+        <label class="garden-dialog-label" for="garden-dialog-name" data-i18n="gardenName">花园名称</label>
         <input
           type="text"
           id="garden-dialog-name"
           class="garden-dialog-input"
           maxlength="32"
+          data-i18n-placeholder="gardenNamePlaceholder"
           placeholder="例如：工作、阅读、生活…"
           required
         />
-        <label class="garden-dialog-label" for="garden-dialog-desc">简介（可选）</label>
+        <label class="garden-dialog-label" for="garden-dialog-desc" data-i18n="gardenDescOptional">简介（可选）</label>
         <textarea
           id="garden-dialog-desc"
           class="garden-dialog-textarea"
           rows="2"
           maxlength="120"
+          data-i18n-placeholder="gardenDescPlaceholder"
           placeholder="这片空间用来记录什么样的思考？"
         ></textarea>
         <div class="garden-dialog-actions">
-          <button type="button" class="garden-dialog-cancel" id="garden-dialog-cancel">取消</button>
-          <button type="submit" class="garden-dialog-submit" id="garden-dialog-submit">创建</button>
+          <button type="button" class="garden-dialog-cancel" id="garden-dialog-cancel" data-i18n="cancel">取消</button>
+          <button type="submit" class="garden-dialog-submit" id="garden-dialog-submit" data-i18n="create">创建</button>
         </div>
       </form>
     </dialog>
 
     <div id="evidence-lightbox" class="evidence-lightbox" hidden aria-hidden="true">
-      <button type="button" class="evidence-lightbox-close" aria-label="关闭">×</button>
-      <img class="evidence-lightbox-img" alt="思维证据大图" />
+      <button type="button" class="evidence-lightbox-close" data-i18n-aria="close" aria-label="关闭">×</button>
+      <img class="evidence-lightbox-img" data-i18n-alt="evidenceImageAlt" alt="Thought evidence (full size)" />
     </div>
 
     <dialog id="thought-detail-dialog" class="settings-dialog thought-detail-dialog">
       <form method="dialog" class="settings-dialog-inner">
         <header class="settings-dialog-head">
-          <h3 class="settings-dialog-title">思考详情</h3>
-          <button type="button" class="settings-dialog-close" id="thought-detail-close" aria-label="关闭">×</button>
+          <h3 class="settings-dialog-title" data-i18n="thoughtDetail">思考详情</h3>
+          <button type="button" class="settings-dialog-close" id="thought-detail-close" data-i18n-aria="close" aria-label="关闭">×</button>
         </header>
         <div id="thought-detail-body" class="thought-detail-body"></div>
         <footer class="settings-dialog-foot">
-          <button type="button" class="btn-soft" id="thought-detail-dismiss">关闭</button>
+          <button type="button" class="btn-soft" id="thought-detail-dismiss" data-i18n="close">关闭</button>
         </footer>
       </form>
     </dialog>
 
     <script src="config/creator.js"></script>
+    <script src="src/utils/i18n.js"></script>
     <script src="utils.js"></script>
     <script src="services/garden.service.js"></script>
     <script src="services/keyword.service.js"></script>

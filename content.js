@@ -45,8 +45,8 @@
     triggerBtn = document.createElement('button');
     triggerBtn.type = 'button';
     triggerBtn.className = 'mt-trigger-btn';
-    triggerBtn.textContent = '记录灵感';
-    triggerBtn.setAttribute('aria-label', '记录灵感到 MindTrace');
+    triggerBtn.textContent = getText('captureIdea');
+    triggerBtn.setAttribute('aria-label', getText('captureIdeaAria'));
     triggerBtn.hidden = true;
     triggerBtn.addEventListener('click', onTriggerClick);
 
@@ -89,54 +89,57 @@
     panel.innerHTML = `
       <div class="mt-panel-header">
         <div class="mt-panel-heading">
-          <span class="mt-panel-title" data-ref="panel-title">记录灵感</span>
+          <span class="mt-panel-title" data-ref="panel-title" data-i18n="captureIdea">Capture Idea</span>
           <p class="mt-panel-subtitle" data-ref="panel-subtitle" hidden></p>
         </div>
-        <button type="button" class="mt-panel-close" aria-label="关闭">×</button>
+        <button type="button" class="mt-panel-close" data-i18n-aria="close" aria-label="Close">×</button>
       </div>
       <div class="mt-panel-body">
         <div class="mt-quote-wrap" data-ref="quote-wrap">
-          <label class="mt-label">原文</label>
+          <label class="mt-label" data-i18n="originalText">Original text</label>
           <blockquote class="mt-quote" data-ref="quote"></blockquote>
         </div>
         <div class="mt-garden-field" data-ref="garden-field">
-          <label class="mt-label" for="mt-garden-select">认知花园</label>
-          <select id="mt-garden-select" class="mt-garden-select" data-ref="garden-select" aria-label="选择认知花园"></select>
-          <button type="button" class="mt-btn-link mt-garden-new" data-action="new-garden" title="快速开辟新花园">+ 新花园</button>
+          <label class="mt-label" for="mt-garden-select" data-i18n="cognitiveGarden">Mind Garden</label>
+          <select id="mt-garden-select" class="mt-garden-select" data-ref="garden-select" data-i18n-aria="selectGardenAria" aria-label="Select mind garden"></select>
+          <button type="button" class="mt-btn-link mt-garden-new" data-action="new-garden" data-i18n="newGardenBtn" data-i18n-title="newGardenTitle" title="Quickly create a new garden">+ New Garden</button>
         </div>
-        <label class="mt-label" for="mt-note-input" data-ref="note-label">随想</label>
+        <label class="mt-label" for="mt-note-input" data-ref="note-label" data-i18n="noteLabel">Your note</label>
         <textarea
           id="mt-note-input"
           class="mt-note-input"
           rows="4"
-          placeholder="想到了什么……"
+          data-i18n-placeholder="notePlaceholder"
+          placeholder="What came to mind…"
           data-ref="note"
         ></textarea>
         <div class="mt-evidence" data-ref="evidence-section">
-          <label class="mt-label">灵感现场</label>
-          <p class="mt-evidence-hint">粘贴、拖入或「截取当前画面」——只保存你主动添加的图，不会用网页分享图顶替</p>
+          <label class="mt-label" data-i18n="inspirationScene">Inspiration scene</label>
+          <p class="mt-evidence-hint" data-i18n="evidenceHint">Paste, drag in, or capture the screen</p>
           <div class="mt-evidence-preview" data-ref="evidence-preview" hidden></div>
           <div class="mt-evidence-actions">
-            <button type="button" class="mt-btn-link" data-action="capture-moment" title="截取当前可见网页">
-              截取当前画面
+            <button type="button" class="mt-btn-link" data-action="capture-moment" data-i18n="captureScreen" data-i18n-title="captureScreenTitle" title="Capture the visible webpage">
+              Capture visible page
             </button>
           </div>
         </div>
       </div>
       <div class="mt-panel-footer" data-ref="panel-footer">
-        <button type="button" class="mt-btn mt-btn-secondary" data-action="cancel">取消</button>
-        <button type="button" class="mt-btn mt-btn-primary" data-action="save">保存</button>
+        <button type="button" class="mt-btn mt-btn-secondary" data-action="cancel" data-i18n="cancel">Cancel</button>
+        <button type="button" class="mt-btn mt-btn-primary" data-action="save" data-i18n="save">Save</button>
       </div>
       <div class="mt-relation-step" data-ref="relation-step" hidden>
-        <p class="mt-relation-title">和这些思考有点像</p>
-        <p class="mt-relation-hint">勾选要标为关联的旧想法（可选）</p>
+        <p class="mt-relation-title" data-i18n="relationSimilarTitle">Similar to these thoughts</p>
+        <p class="mt-relation-hint" data-i18n="relationSimilarHint">Check past ideas to link (optional)</p>
         <div class="mt-relation-list" data-ref="relation-list"></div>
         <div class="mt-relation-actions">
-          <button type="button" class="mt-btn mt-btn-secondary" data-action="relation-skip">跳过</button>
-          <button type="button" class="mt-btn mt-btn-primary" data-action="relation-confirm">确认关联</button>
+          <button type="button" class="mt-btn mt-btn-secondary" data-action="relation-skip" data-i18n="relationSkip">Skip</button>
+          <button type="button" class="mt-btn mt-btn-primary" data-action="relation-confirm" data-i18n="relationConfirm">Confirm links</button>
         </div>
       </div>
     `;
+
+    MindTraceI18n.applyPageI18n(panel);
 
     panel.querySelector('.mt-panel-close').addEventListener('click', hidePanel);
     panel.querySelector('[data-action="cancel"]').addEventListener('click', hidePanel);
@@ -396,41 +399,41 @@
 
     if (mode === 'quick') {
       if (titleEl) {
-        titleEl.textContent = '空白速记';
+        titleEl.textContent = getText('quickNoteTitle');
       }
       if (subtitleEl) {
-        subtitleEl.textContent = '不必划词，记下此刻的想法';
+        subtitleEl.textContent = getText('quickNoteSubtitle');
         subtitleEl.hidden = false;
       }
       if (quoteWrap) {
         quoteWrap.hidden = true;
       }
       if (noteLabel) {
-        noteLabel.textContent = '随想';
+        noteLabel.textContent = getText('noteLabel');
       }
       if (noteInput) {
-        noteInput.placeholder = '你在想什么……';
+        noteInput.placeholder = getText('quickNotePlaceholder');
       }
     } else if (mode === 'image') {
       if (titleEl) {
-        titleEl.textContent = '留住这一瞬';
+        titleEl.textContent = getText('imageCaptureTitle');
       }
       if (subtitleEl) {
-        subtitleEl.textContent = '画面已经有了，写几句留给以后的自己';
+        subtitleEl.textContent = getText('imageCaptureSubtitle');
         subtitleEl.hidden = false;
       }
       if (quoteWrap) {
         quoteWrap.hidden = true;
       }
       if (noteLabel) {
-        noteLabel.textContent = '随想';
+        noteLabel.textContent = getText('noteLabel');
       }
       if (noteInput) {
-        noteInput.placeholder = '它让你想到什么……';
+        noteInput.placeholder = getText('imageNotePlaceholder');
       }
     } else {
       if (titleEl) {
-        titleEl.textContent = '记录灵感';
+        titleEl.textContent = getText('captureIdea');
       }
       if (subtitleEl) {
         subtitleEl.textContent = '';
@@ -440,10 +443,10 @@
         quoteWrap.hidden = false;
       }
       if (noteLabel) {
-        noteLabel.textContent = '随想';
+        noteLabel.textContent = getText('noteLabel');
       }
       if (noteInput) {
-        noteInput.placeholder = '想到了什么……';
+        noteInput.placeholder = getText('notePlaceholder');
       }
     }
   }
@@ -452,7 +455,7 @@
     const selection = window.getSelection();
     const text = selection ? selection.toString().trim() : '';
     if (text.length < MIN_SELECTION_LENGTH) {
-      showToast('请先在页面上选中至少 2 个字符');
+      showToast(getText('selectMinChars'));
       return;
     }
     currentSelectedText = text;
@@ -531,11 +534,11 @@
       if (blob) {
         addEvidenceBlob(blob);
       } else {
-        showToast('无法读取该图片，请尝试另存为后粘贴');
+        showToast(getText('imageReadFailed'));
       }
     } catch (err) {
       console.warn('[MindTrace] image fetch failed:', err);
-      showToast('无法读取该图片');
+      showToast(getText('imageReadFailedAlt'));
     }
 
     if (noteInput) {
@@ -561,7 +564,7 @@
       select.innerHTML = gardens
         .map(
           (g) =>
-            `<option value="${g.id.replace(/"/g, '&quot;')}">${(g.icon || '🌿') + ' ' + (g.name || '花园')}</option>`
+            `<option value="${g.id.replace(/"/g, '&quot;')}">${(g.icon || '🌿') + ' ' + (g.name || getText('gardenDefaultName'))}</option>`
         )
         .join('');
       select.value = currentId;
@@ -571,7 +574,10 @@
   }
 
   async function onQuickCreateGardenClick() {
-    const name = window.prompt('新花园名称', '新花园');
+    const name = window.prompt(
+      getText('newGardenPrompt'),
+      getText('newGardenDefault')
+    );
     if (!name || !name.trim()) {
       return;
     }
@@ -584,10 +590,10 @@
       if (select) {
         select.value = garden.id;
       }
-      showToast(`已开辟「${garden.name}」`);
+      showToast(getText('gardenCreated', [garden.name]));
     } catch (err) {
       console.warn('[MindTrace] quick create garden failed:', err);
-      showToast('创建花园失败');
+      showToast(getText('createGardenFailed'));
     }
   }
 
@@ -653,7 +659,7 @@
       !savedRecord.id
     ) {
       hidePanel();
-      showToast('✓ 已保存到 MindTrace');
+      showToast(getText('savedToMindTrace'));
       return;
     }
 
@@ -666,7 +672,7 @@
 
     if (!related.length) {
       hidePanel();
-      showToast('✓ 已保存到 MindTrace');
+      showToast(getText('savedToMindTrace'));
       window.getSelection()?.removeAllRanges();
       return;
     }
@@ -681,7 +687,7 @@
 
     if (!step || !listEl) {
       hidePanel();
-      showToast('✓ 已保存到 MindTrace');
+      showToast(getText('savedToMindTrace'));
       return;
     }
 
@@ -701,12 +707,12 @@
           (record.note || '').trim().split('\n')[0] ||
           (record.selectedText || '').trim() ||
           record.pageTitle ||
-          '（未命名）';
+          getText('unnamedThought');
         const short =
           label.length > 56 ? label.slice(0, 56) + '…' : label;
         const meta = semantic
-          ? `语义 ${(score * 100).toFixed(0)}%`
-          : `关键词 ${score}`;
+          ? getText('semanticScore', [String((score * 100).toFixed(0))])
+          : getText('keywordScore', [String(score)]);
         return `
           <label class="mt-relation-item">
             <input type="checkbox" value="${record.id}" />
@@ -738,7 +744,7 @@
 
   function onRelationSkip() {
     hidePanel();
-    showToast('✓ 已保存到 MindTrace');
+    showToast(getText('savedToMindTrace'));
     window.getSelection()?.removeAllRanges();
   }
 
@@ -763,13 +769,13 @@
       hidePanel();
       showToast(
         linkedIds.length
-          ? `✓ 已保存，并关联 ${linkedIds.length} 条思考`
-          : '✓ 已保存到 MindTrace'
+          ? getText('savedWithLinks', [String(linkedIds.length)])
+          : getText('savedToMindTrace')
       );
     } catch (err) {
       console.warn('[MindTrace] link thoughts failed:', err);
       hidePanel();
-      showToast('✓ 已保存（关联写入失败）');
+      showToast(getText('savedLinkFailed'));
     }
     window.getSelection()?.removeAllRanges();
   }
@@ -782,7 +788,7 @@
       return;
     }
     if (pendingEvidence.length >= MAX_EVIDENCE_IMAGES) {
-      showToast(`最多保存 ${MAX_EVIDENCE_IMAGES} 张灵感现场`);
+      showToast(getText('maxEvidenceImages', [String(MAX_EVIDENCE_IMAGES)]));
       return;
     }
     const previewUrl = URL.createObjectURL(blob);
@@ -807,8 +813,8 @@
       .map(
         (item, index) =>
           `<div class="mt-evidence-thumb-wrap">
-            <img class="mt-evidence-thumb" src="${item.previewUrl}" alt="灵感现场预览" />
-            <button type="button" class="mt-evidence-remove" data-index="${index}" aria-label="移除">×</button>
+            <img class="mt-evidence-thumb" src="${item.previewUrl}" alt="${MindTraceUtils.escapeHtml(getText('evidencePreviewAlt'))}" />
+            <button type="button" class="mt-evidence-remove" data-index="${index}" data-i18n-aria="remove" aria-label="${MindTraceUtils.escapeHtml(getText('remove'))}">×</button>
           </div>`
       )
       .join('');
@@ -899,16 +905,16 @@
       });
 
       if (!response || !response.ok || !response.dataUrl) {
-        showToast('截图失败，请确认已激活该标签页');
+        showToast(getText('captureFailedActiveTab'));
         return;
       }
 
       const blob = await dataUrlToBlob(response.dataUrl);
       addEvidenceBlob(blob);
-      showToast('已捕获当前页面画面');
+      showToast(getText('pageCaptured'));
     } catch (err) {
       console.warn('[MindTrace] capture moment failed:', err);
-      showToast('截图失败');
+      showToast(getText('captureFailed'));
     } finally {
       if (saveBtn) {
         saveBtn.disabled = false;
@@ -1022,7 +1028,7 @@
     });
 
     if (!MindTraceUtils.hasRequiredThought(record)) {
-      showToast('请至少保留原文、添加图片或写下一句随想');
+      showToast(getText('saveValidation'));
       if (noteInput) {
         noteInput.focus();
       }
@@ -1032,27 +1038,27 @@
     const saveBtn = panelEl.querySelector('[data-action="save"]');
     if (saveBtn) {
       saveBtn.disabled = true;
-      saveBtn.textContent = '保存中…';
+      saveBtn.textContent = getText('saving');
     }
 
     try {
       const saved = await MindTraceStorage.save(record, { imageBlobs: blobs });
       if (saveBtn) {
         saveBtn.disabled = false;
-        saveBtn.textContent = '保存';
+        saveBtn.textContent = getText('save');
       }
       await showRelationPrompt(saved);
     } catch (err) {
       console.error('[MindTrace] 保存失败:', err);
       if (err && err.message === 'THOUGHT_CONTENT_REQUIRED') {
-        showToast('请至少保留原文、添加图片或写下一句随想');
+        showToast(getText('saveValidation'));
       } else {
-        showToast('保存失败，请重试');
+        showToast(getText('saveFailedRetry'));
       }
     } finally {
       if (saveBtn) {
         saveBtn.disabled = false;
-        saveBtn.textContent = '保存';
+        saveBtn.textContent = getText('save');
       }
     }
   }

@@ -13,16 +13,42 @@ const MindTraceUtils = (function () {
   }
 
   /**
-   * 格式化时间（中文 locale）
+   * @returns {'zh-CN'|'en-US'}
+   */
+  function getDateLocale() {
+    if (typeof MindTraceI18n !== 'undefined' && MindTraceI18n.getDateLocale) {
+      return MindTraceI18n.getDateLocale();
+    }
+    try {
+      const ui = chrome.i18n.getUILanguage().toLowerCase();
+      return ui === 'zh' || ui.startsWith('zh-') ? 'zh-CN' : 'en-US';
+    } catch (_err) {
+      const nav = navigator.language || 'en';
+      return nav.toLowerCase().startsWith('zh') ? 'zh-CN' : 'en-US';
+    }
+  }
+
+  /**
+   * 格式化时间（按浏览器语言）
    * @param {number} timestamp
    * @returns {string}
    */
   function formatDate(timestamp) {
     const date = new Date(timestamp);
-    return date.toLocaleString('zh-CN', {
+    const locale = getDateLocale();
+    if (locale === 'zh-CN') {
+      return date.toLocaleString(locale, {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+    return date.toLocaleString(locale, {
       year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
+      month: 'short',
+      day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -41,16 +67,27 @@ const MindTraceUtils = (function () {
       date.getMonth() === now.getMonth() &&
       date.getDate() === now.getDate();
 
+    const locale = getDateLocale();
+
     if (isToday) {
-      return date.toLocaleTimeString('zh-CN', {
+      return date.toLocaleTimeString(locale, {
         hour: '2-digit',
         minute: '2-digit',
       });
     }
 
-    return date.toLocaleDateString('zh-CN', {
-      month: '2-digit',
-      day: '2-digit',
+    if (locale === 'zh-CN') {
+      return date.toLocaleDateString(locale, {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+
+    return date.toLocaleDateString(locale, {
+      month: 'short',
+      day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -199,6 +236,7 @@ const MindTraceUtils = (function () {
 
   return {
     generateId,
+    getDateLocale,
     formatDate,
     formatDateShort,
     escapeHtml,

@@ -12,6 +12,7 @@ const root = path.resolve(__dirname, '..');
 const outDir = path.join(root, 'release');
 const staging = path.join(outDir, '.pack-staging');
 const zipPath = path.join(outDir, 'mindtrace-extension.zip');
+const zipTempPath = `${zipPath}.tmp`;
 
 /** 扩展根目录下的运行时文件 */
 const ROOT_FILES = [
@@ -26,13 +27,16 @@ const ROOT_FILES = [
   'popup.css',
   'popup.html',
   'popup.js',
-  'privacy.md',
+  'universe.html',
+  'universe.js',
+  'universe.css',
   'storage.js',
   'utils.js',
+  'privacy.md',
 ];
 
 /** 整目录复制（排除 .map） */
-const INCLUDE_DIRS = ['icons', 'lib', 'services', 'config'];
+const INCLUDE_DIRS = ['icons', 'lib', 'services', 'config', '_locales', 'src'];
 
 /** 仅包含样式，不含 graph.jsx 源码 */
 const GRAPH_FILES = ['graph/graph.css'];
@@ -43,7 +47,7 @@ function ensureDir(dir) {
 
 function rmDir(dir) {
   if (fs.existsSync(dir)) {
-    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   }
 }
 
@@ -101,34 +105,105 @@ function prepareStaging() {
   }
 }
 
+function removeFileIfExists(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return;
+  }
+  fs.rmSync(filePath, { force: true, maxRetries: 8, retryDelay: 200 });
+}
+
+/**
+ * 使用 .NET ZipFile 生成 zip（Chrome Web Store 兼容，manifest.json 在根目录）
+ * @returns {boolean}
+ */
+function createZipWithDotNet(destPath) {
+  removeFileIfExists(destPath);
+  const stagingEsc = staging.replace(/'/g, "''");
+  const destEsc = destPath.replace(/'/g, "''");
+  const ps = [
+    "$ErrorActionPreference = 'Stop'",
+    'Add-Type -AssemblyName System.IO.Compression.FileSystem',
+    `[System.IO.Compression.ZipFile]::CreateFromDirectory('${stagingEsc}', '${destEsc}', [System.IO.Compression.CompressionLevel]::Optimal, $false)`,
+  ].join('; ');
+  const result = spawnSync('powershell', ['-NoProfile', '-Command', ps], {
+    stdio: 'inherit',
+    cwd: root,
+  });
+  return result.status === 0 && fs.existsSync(destPath);
+}
+
+/**
+ * 使用 tar -a 生成 zip（部分 Windows tar 会把路径写成 ./manifest.json，Chrome 不接受）
+ * @returns {boolean}
+ */
+function createZipWithTar(destPath) {
+  removeFileIfExists(destPath);
+  const result = spawnSync('tar', ['-a', '-c', '-f', destPath, '.'], {
+    cwd: staging,
+    stdio: 'inherit',
+  });
+  return result.status === 0 && fs.existsSync(destPath);
+}
+
+/**
+ * @returns {boolean}
+ */
+function createZipWithZipCommand(destPath) {
+  removeFileIfExists(destPath);
+  const result = spawnSync('zip', ['-r', destPath, '.'], {
+    cwd: staging,
+    stdio: 'inherit',
+  });
+  return result.status === 0 && fs.existsSync(destPath);
+}
+
+/**
+ * @returns {boolean}
+ */
+function createZipWithPowerShell(destPath) {
+  removeFileIfExists(destPath);
+  const stagingGlob = path.join(staging, '*').replace(/\\/g, '/');
+  const dest = destPath.replace(/\\/g, '/');
+  const ps = [
+    '$ErrorActionPreference = "Stop"',
+    `Compress-Archive -LiteralPath @(${JSON.stringify(stagingGlob)}) -DestinationPath ${JSON.stringify(dest)} -CompressionLevel Optimal -Force`,
+  ].join('; ');
+  const result = spawnSync('powershell', ['-NoProfile', '-Command', ps], {
+    stdio: 'inherit',
+    cwd: root,
+  });
+  return result.status === 0 && fs.existsSync(destPath);
+}
+
 function createZip() {
   ensureDir(outDir);
-  if (fs.existsSync(zipPath)) {
-    fs.unlinkSync(zipPath);
+  removeFileIfExists(zipTempPath);
+  removeFileIfExists(zipPath);
+
+  const writers = [
+    { name: 'ZipFile.CreateFromDirectory', run: () => createZipWithDotNet(zipTempPath) },
+    { name: 'zip', run: () => createZipWithZipCommand(zipTempPath) },
+    { name: 'tar', run: () => createZipWithTar(zipTempPath) },
+    { name: 'Compress-Archive', run: () => createZipWithPowerShell(zipTempPath) },
+  ];
+
+  let created = false;
+  for (const writer of writers) {
+    console.log(`[pack] trying ${writer.name}...`);
+    if (writer.run()) {
+      created = true;
+      console.log(`[pack] packed with ${writer.name}`);
+      break;
+    }
+    removeFileIfExists(zipTempPath);
   }
 
-  if (process.platform === 'win32') {
-    const ps = [
-      '$ErrorActionPreference = "Stop"',
-      `Compress-Archive -Path "${staging.replace(/\\/g, '/')}/*" -DestinationPath "${zipPath.replace(/\\/g, '/')}" -CompressionLevel Optimal`,
-    ].join('; ');
-    const result = spawnSync(
-      'powershell',
-      ['-NoProfile', '-Command', ps],
-      { stdio: 'inherit', cwd: root },
-    );
-    if (result.status !== 0) {
-      throw new Error('Compress-Archive 失败');
-    }
-  } else {
-    const result = spawnSync('zip', ['-r', zipPath, '.'], {
-      cwd: staging,
-      stdio: 'inherit',
-    });
-    if (result.status !== 0) {
-      throw new Error('zip 命令失败，请安装 zip 或使用 Windows 打包');
-    }
+  if (!created) {
+    throw new Error('ZIP 创建失败（tar / zip / Compress-Archive 均不可用或被占用）');
   }
+
+  removeFileIfExists(zipPath);
+  fs.renameSync(zipTempPath, zipPath);
 }
 
 function verifyZip() {
